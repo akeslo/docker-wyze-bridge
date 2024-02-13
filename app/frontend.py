@@ -68,7 +68,7 @@ def create_app():
             columns = request.cookies.get("number_of_columns", "2")
         if not (refresh := request.args.get("refresh")):
             refresh = request.cookies.get("refresh_period", "30")
-        number_of_columns = int(columns) if columns.isdigit() else 0
+        number_of_columns = int(columns) if columns.isdigit() else 4
         refresh_period = int(refresh) if refresh.isdigit() else 0
         show_video = bool(request.cookies.get("show_video"))
         autoplay = bool(request.cookies.get("autoplay"))
