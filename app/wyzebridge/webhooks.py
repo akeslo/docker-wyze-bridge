@@ -10,6 +10,8 @@ def send_webhook(event: str, camera: str, msg: str, img: Optional[str] = None) -
     if not (url := env_cam(f"{event}_webhooks", camera, style="original")):
         return
 
+    url = url.format(cam_name=camera, img=str(img))
+
     header = {
         "user-agent": f"wyzebridge/{VERSION}",
         "X-Title": f"{event} event".title(),
