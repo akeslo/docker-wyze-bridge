@@ -146,9 +146,10 @@ class WyzeCamera(BaseModel):
         uri_sep = "-"
         if os.getenv("URI_SEPARATOR") in {"-", "_", "#"}:
             uri_sep = os.getenv("URI_SEPARATOR", uri_sep)
-        uri = clean_name(self.nickname or self.mac, uri_sep).lower()
+        uri = self.nickname or self.mac
         if os.getenv("URI_MAC", "").lower() == "true" and (self.mac or self.parent_mac):
             uri += uri_sep + (self.mac or self.parent_mac or "")[-4:]
+        uri = clean_name(uri, uri_sep).lower()
         return uri
 
     @property
