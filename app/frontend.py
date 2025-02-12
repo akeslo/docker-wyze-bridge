@@ -2,7 +2,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from flask import (
     Flask,
@@ -17,6 +17,7 @@ from werkzeug.exceptions import NotFound
 from wyze_bridge import WyzeBridge
 from wyzebridge import config, web_ui
 from wyzebridge.auth import WbAuth
+from wyzebridge.bridge_utils import env_bool
 from wyzebridge.web_ui import url_for
 
 
@@ -248,8 +249,9 @@ def create_app():
         """
         Generate an m3u8 playlist with all enabled cameras.
         """
+        hostname = request.host.split(":")[0]
         cameras = web_ui.format_streams(wb.streams.get_all_cam_info())
-        resp = make_response(render_template("m3u8.html", cameras=cameras))
+        resp = make_response(render_template("m3u8.html", cameras=cameras, hostname=hostname))
         resp.headers.set("content-type", "application/x-mpegURL")
         return resp
 
