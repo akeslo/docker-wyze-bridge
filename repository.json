@@ -1,4 +1,5 @@
 {
     "name": "docker-wyze-bridge",
-    "url": "https://github.com/mrlt8/docker-wyze-bridge"
+    "url": "https://github.com/idisposable/docker-wyze-bridge",
+    "maintainer": "Marc Brooks IDisposable@gmail.com"
 }

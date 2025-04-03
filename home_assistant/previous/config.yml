@@ -1,9 +1,9 @@
-name: Docker Wyze Bridge (2.9.12 build)
+name: Docker Wyze Bridge (2.10.3 build)
 description: Previous build. Use the REBUILD button to pull latest image.
 slug: docker_wyze_bridge_previous
 url: https://github.com/mrlt8/docker-wyze-bridge
 image: mrlt8/wyze-bridge
-version: 2.9.12
+version: 2.10.3
 stage: deprecated
 arch:
   - armv7

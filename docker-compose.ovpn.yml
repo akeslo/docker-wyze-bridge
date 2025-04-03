@@ -19,7 +19,7 @@ services:
   wyze-bridge:
     container_name: wyze-bridge
     restart: unless-stopped
-    image: mrlt8/wyze-bridge:latest
+    image: idisposablegithub365/wyze-bridge:latest
     depends_on: [openvpn]
     network_mode: service:openvpn
     environment:

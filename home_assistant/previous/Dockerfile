@@ -1,1 +1,1 @@
-FROM mrlt8/wyze-bridge:2.6.0
+FROM mrlt8/wyze-bridge:v2.10.3

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>docker-wyze-bridge</Name>
-  <Repository>mrlt8/wyze-bridge</Repository>
-  <Registry>https://hub.docker.com/r/mrlt8/wyze-bridge</Registry>
+  <Repository>idisposablegithub365/wyze-bridge</Repository>
+  <Registry>https://hub.docker.com/r/idisposablegithub365/wyze-bridge</Registry>
   <Branch>
     <Tag>latest</Tag>
     <TagDescription>Latest stable release.</TagDescription>
@@ -20,8 +20,8 @@
     <TagDescription>Latest development release for testing future changes.</TagDescription>
   </Branch>
   <Network>bridge</Network>
-  <Support>https://github.com/mrlt8/docker-wyze-bridge</Support>
-  <Project>https://github.com/mrlt8/docker-wyze-bridge</Project>
+  <Support>https://github.com/idisposable/docker-wyze-bridge</Support>
+  <Project>https://github.com/idisposable/docker-wyze-bridge</Project>
   <Overview>WebRTC/RTSP/RTMP/LL-HLS bridge for Wyze cams in a docker container.
     As of April 2024, you will need to supply your own API Key and ID:
     https://support.wyze.com/hc/en-us/articles/16129834216731-Creating-an-API-Key
@@ -48,7 +48,7 @@
   <Config Name="WebRTC Port" Target="8889" Default="8889" Mode="tcp" Description="" Type="Port" Display="advanced" Required="false" Mask="false">8889</Config>
   <Config Name="WebRTC/ICE Port" Target="8189" Default="8189" Mode="udp" Description="" Type="Port" Display="advanced" Required="false" Mask="false">8189</Config>
   <Config Name="WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="" Type="Port" Display="advanced" Required="false" Mask="false">5000</Config>
-  <Config Name="Net_Mode" Target="NET_MODE" Default="ANY" Mode="" Description="https://github.com/mrlt8/docker-wyze-bridge#LAN-Mode" Type="Variable" Display="advanced" Required="false" Mask="false">ANY</Config>
+  <Config Name="Net_Mode" Target="NET_MODE" Default="ANY" Mode="" Description="https://github.com/idisposable/docker-wyze-bridge#LAN-Mode" Type="Variable" Display="advanced" Required="false" Mask="false">ANY</Config>
   <Config Name="MQTT_HOST" Target="MQTT_HOST" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="MQTT_AUTH" Target="MQTT_AUTH" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="MQTT_DTOPIC" Target="MQTT_DTOPIC" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false"/>

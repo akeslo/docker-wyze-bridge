@@ -1,1 +1,1 @@
-FROM mrlt8/wyze-bridge:latest-hw
+FROM idisposablegithub365/wyze-bridge:latest-hw

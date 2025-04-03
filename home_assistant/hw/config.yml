@@ -1,7 +1,7 @@
 name: Docker Wyze Bridge (HW branch)
 description: HW build. Use the REBUILD button to pull latest image.
 slug: docker_wyze_bridge_hw
-url: "https://github.com/mrlt8/docker-wyze-bridge"
+url: "https://github.com/idisposable/docker-wyze-bridge"
 version: hw
 stage: experimental
 arch:

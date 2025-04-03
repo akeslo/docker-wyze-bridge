@@ -1,1 +1,1 @@
-FROM mrlt8/wyze-bridge:dev
+FROM idisposablegithub365/wyze-bridge:dev
