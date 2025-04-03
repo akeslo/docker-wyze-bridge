@@ -1,7 +1,7 @@
-[![Docker](https://github.com/mrlt8/docker-wyze-bridge/actions/workflows/docker-image.yml/badge.svg)](https://github.com/mrlt8/docker-wyze-bridge/actions/workflows/docker-image.yml)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/mrlt8/docker-wyze-bridge?logo=github)](https://github.com/mrlt8/docker-wyze-bridge/releases/latest)
-[![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/mrlt8/wyze-bridge?sort=semver&logo=docker&logoColor=white)](https://hub.docker.com/r/mrlt8/wyze-bridge)
-[![Docker Pulls](https://img.shields.io/docker/pulls/mrlt8/wyze-bridge?logo=docker&logoColor=white)](https://hub.docker.com/r/mrlt8/wyze-bridge)
+[![Docker](https://github.com/idisposable/docker-wyze-bridge/actions/workflows/docker-image.yml/badge.svg)](https://github.com/idisposable/docker-wyze-bridge/actions/workflows/docker-image.yml)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/idisposable/docker-wyze-bridge?logo=github)](https://github.com/idisposable/docker-wyze-bridge/releases/latest)
+[![Docker Image Size (latest semver)](https://img.shields.io/docker/image-size/idisposablegithub365/wyze-bridge?sort=semver&logo=docker&logoColor=white)](https://hub.docker.com/r/idisposablegithub365/wyze-bridge)
+[![Docker Pulls](https://img.shields.io/docker/pulls/idisposablegithub365/wyze-bridge?logo=docker&logoColor=white)](https://hub.docker.com/r/idisposablegithub365/wyze-bridge)
 
 # WebRTC/RTSP/RTMP/HLS Bridge for Wyze Cam
 
@@ -50,12 +50,12 @@ See the [supported cameras](#supported-cameras) section for additional informati
 Install [docker](https://docs.docker.com/get-docker/) and run:
 
 ```bash
-docker run -p 8554:8554 -p 8888:8888 -p 5050:5000 -e WB_AUTH=false mrlt8/wyze-bridge
+docker run -p 8554:8554 -p 8888:8888 -p 5050:5000 -e WB_AUTH=false idisposablegithub365/wyze-bridge
 ```
 
 You can then use the web interface at `http://localhost:5050` where `localhost` is the hostname or ip of the machine running the bridge.
 
-See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/mrlt8/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
+See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
 ## What's Changed in v2.10.3
 
@@ -122,7 +122,7 @@ Use `RECORD_ALL` or `RECORD_CAM_NAME` to enable recording.
 - `RECORD_LENGTH` Length of each clip. Use `s` for seconds , `h` for hours. Defaults to `60s`
 - `RECORD_KEEP` Delete older clips. Use `s` for seconds , `h` for hours. Set to 0s to disable automatic deletion. Defaults to `0s`
 
-[View previous changes](https://github.com/mrlt8/docker-wyze-bridge/releases)
+[View previous changes](https://github.com/idisposable/docker-wyze-bridge/releases)
 
 ## FAQ
 
@@ -142,9 +142,9 @@ Use `RECORD_ALL` or `RECORD_CAM_NAME` to enable recording.
 ![Supports amd64 Architecture](https://img.shields.io/badge/amd64-yes-success.svg)
 ![Supports Apple Silicon Architecture](https://img.shields.io/badge/apple_silicon-yes-success.svg)
 
-[![Home Assistant Add-on](https://img.shields.io/badge/home_assistant-add--on-blue.svg?logo=homeassistant&logoColor=white)](https://github.com/mrlt8/docker-wyze-bridge/wiki/Home-Assistant)
+[![Home Assistant Add-on](https://img.shields.io/badge/home_assistant-add--on-blue.svg?logo=homeassistant&logoColor=white)](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant)
 [![Homebridge](https://img.shields.io/badge/homebridge-camera--ffmpeg-blue.svg?logo=homebridge&logoColor=white)](https://sunoo.github.io/homebridge-camera-ffmpeg/configs/WyzeCam.html)
-[![Portainer stack](https://img.shields.io/badge/portainer-stack-blue.svg?logo=portainer&logoColor=white)](https://github.com/mrlt8/docker-wyze-bridge/wiki/Portainer)
+[![Portainer stack](https://img.shields.io/badge/portainer-stack-blue.svg?logo=portainer&logoColor=white)](https://github.com/idisposable/docker-wyze-bridge/wiki/Portainer)
 [![Unraid Community App](https://img.shields.io/badge/unraid-community--app-blue.svg?logo=unraid&logoColor=white)](https://github.com/mrlt8/docker-wyze-bridge/issues/236)
 
 Should work on most x64 systems as well as on most modern arm-based systems like the Raspberry Pi 3/4/5 or Apple Silicon M1/M2/M3.
@@ -161,7 +161,7 @@ The container can be run on its own, in [Portainer](https://github.com/mrlt8/doc
 ## Supported Cameras
 
 > [!IMPORTANT]
-> Some newer camera firmware versions may cause issues with remote access via P2P. Local "LAN" access seems unaffected at this time. A temporary solution is to use a VPN. See the [OpenVPN example](https://github.com/mrlt8/docker-wyze-bridge/blob/main/docker-compose.ovpn.yml).
+> Some newer camera firmware versions may cause issues with remote access via P2P. Local "LAN" access seems unaffected at this time. A temporary solution is to use a VPN. See the [OpenVPN example](https://github.com/idisposable/docker-wyze-bridge/blob/main/docker-compose.ovpn.yml).
 
 | Camera                        | Model          | Tutk Support                                                 | Latest FW |
 | ----------------------------- | -------------- | ------------------------------------------------------------ | --------- |
@@ -194,7 +194,7 @@ The container can be run on its own, in [Portainer](https://github.com/mrlt8/doc
 This is similar to the docker run command, but will save all your options in a yaml file.
 
 1. Install [Docker Compose](https://docs.docker.com/compose/install/).
-2. Use the [sample](https://raw.githubusercontent.com/mrlt8/docker-wyze-bridge/main/docker-compose.sample.yml) as a guide to create a `docker-compose.yml` file with your wyze credentials.
+2. Use the [sample](https://raw.githubusercontent.com/idisposable/docker-wyze-bridge/main/docker-compose.sample.yml) as a guide to create a `docker-compose.yml` file with your wyze credentials.
 3. Run `docker-compose up`.
 
 Once you're happy with your config you can use `docker-compose up -d` to run it in detached mode.

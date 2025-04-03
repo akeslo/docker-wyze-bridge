@@ -2,7 +2,7 @@ services:
     wyze-bridge:
         container_name: wyze-bridge
         restart: unless-stopped
-        image: mrlt8/wyze-bridge:latest
+        image: idisposablegithub365/wyze-bridge:latest
         ports:
             - 1935:1935 # RTMP
             - 8554:8554 # RTSP

@@ -1,3 +1,20 @@
+## What's Changed in v3.0.3
+
+Rehoming this to ensure it lives on since PR merges have stalled in the original (and most excellent) @mrlt8 repo, I am surfacing a new 
+release with the PRs I know work. **Note** The badges on the GitHub repo may be broken and the donation links _still_ go to @mrlt8 (as they should!)
+
+- Chore: Bump Flask to 3.1.*
+- Chore: Bump Pydantic to 2.11.*
+- Chore: Bump Python-dotenv to 1.1.*
+- Chore: Bump MediaMTX to 1.11.3
+- FIX: Add host_network: true for use in home assistant by @jdeath to allow communications in Docker
+- FIX: Hardware accelerated rotation by @giorgi1324
+- Enhancement: Add more details to the cams.m3u8 endpoint by @IDisposable
+- FIX: Fix mixed case when URI_MAC=true by @unlifelike
+- Update: Update Homebridge-Camera-FFMpeg documentation link by @donavanbecker
+- FIX: Add formatting of {cam_name} and {img} to webhooks.py by @traviswparker which was lost
+- Chore: Adjust everything for move to my GitHub repo and Docker Hub account
+
 ## What's Changed in v2.10.3
 
 - FIX: Increased `MTX_WRITEQUEUESIZE` to prevent issues with higher bitrates.
@@ -63,6 +80,22 @@ Use `RECORD_ALL` or `RECORD_CAM_NAME` to enable recording.
 - `RECORD_LENGTH` Length of each clip. Use `s` for seconds , `h` for hours. Defaults to `60s`
 - `RECORD_KEEP` Delete older clips. Use `s` for seconds , `h` for hours. Set to 0s to disable automatic deletion. Defaults to `0s`
 
+## What's Changed in v3.0.3
+
+Rehoming this to ensure it lives on since PR merges have stalled in the original (and most excellent) @mrlt8 repo, I am surfacing a new 
+release with the PRs I know work. **Note** The badges on the GitHub repo may be broken and the donation links _still_ go to @mrlt8 (as they should!)
+
+- Chore: Bump Flask to 3.1.*
+- Chore: Bump Pydantic to 2.11.*
+- Chore: Bump Python-dotenv to 1.1.*
+- Chore: Bump MediaMTX to 1.11.3
+- FIX: Add host_network: true for use in home assistant by @jdeath to allow communications in Docker
+- FIX: Hardware accelerated rotation by @giorgi1324
+- Enhancement: Add more details to the cams.m3u8 endpoint by @IDisposable
+- FIX: Fix mixed case when URI_MAC=true by @unlifelike
+- Update: Update Homebridge-Camera-FFMpeg documentation link by @donavanbecker
+- FIX: Add formatting of {cam_name} and {img} to webhooks.py by @traviswparker which was lost
+- Chore: Adjust everything for move to my GitHub repo and Docker Hub account
 
 ## What's Changed in v2.9.11/12
 
@@ -396,7 +429,7 @@ FIXES:
   * `REFRESH_TOKEN` - Use a valid refresh token to request a *new* access token and refresh token.
   * `ACCESS_TOKEN` - Use an existing valid access token too access the API. Will *not* be able to refresh the token once it expires.
 * NEW: Docker "QSV" Images with basic support for QSV hardware accelerated encoding. (#736) Thanks @mitchross, @392media, @chris001, and everyone who helped!
-  * Use the `latest-qsv` tag (e.g., `mrlt8/wyze-bridge:latest-qsv`) along with the `H264_ENC=h264_qsv` ENV variable. 
+  * Use the `latest-qsv` tag (e.g., `idisposablegithub365/wyze-bridge:latest-qsv`) along with the `H264_ENC=h264_qsv` ENV variable. 
 * FIXES:
   * Home Assistant: set max bitrate quality to 255 (#893) Thanks @gtxaspec!
   * WebUI: email 2FA support.
@@ -647,4 +680,4 @@ Some ENV options have been deprecated:
 * `MOTION_COOLDOWN` -> `BOA_COOLDOWN`
 
 
-[View previous changes](https://github.com/mrlt8/docker-wyze-bridge/releases)
+[View previous changes](https://github.com/idisposable/docker-wyze-bridge/releases)

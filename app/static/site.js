@@ -287,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
   checkAPI.addEventListener("click", () => {
     let icon = checkAPI.getElementsByClassName("fa-arrows-rotate")[0].classList;
     icon.add("fa-spin");
-    fetch("https://api.github.com/repos/mrlt8/docker-wyze-bridge/releases/latest")
+    fetch("https://api.github.com/repos/idisposable/docker-wyze-bridge/releases/latest")
       .then((response) => response.json())
       .then((data) => {
         let apiVersion = data.tag_name.replace(/[^0-9\.]/g, "");
