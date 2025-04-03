@@ -57,6 +57,23 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.0.3
+
+Rehoming this to ensure it lives on since PR merges have stalled in the original (and most excellent) @mrlt8 repo, I am surfacing a new 
+release with the PRs I know work. **Note** The badges on the GitHub repo may be broken and the donation links _still_ go to @mrlt8 (as they should!)
+
+- Chore: Bump Flask to 3.1.*
+- Chore: Bump Pydantic to 2.11.*
+- Chore: Bump Python-dotenv to 1.1.*
+- Chore: Bump MediaMTX to 1.11.3
+- FIX: Add host_network: true for use in Home Assistant by @jdeath to allow communications in Docker
+- FIX: Hardware accelerated rotation by @giorgi1324
+- Enhancement: Add more details to the cams.m3u8 endpoint by @IDisposable
+- FIX: Fix mixed case when URI_MAC=true by @unlifelike
+- Update: Update Homebridge-Camera-FFMpeg documentation link by @donavanbecker
+- FIX: Add formatting of {cam_name} and {img} to webhooks.py by @traviswparker which was lost
+- Chore: Adjust everything for move to my GitHub repo and Docker Hub account
+
 ## What's Changed in v2.10.3
 
 - FIX: Increased `MTX_WRITEQUEUESIZE` to prevent issues with higher bitrates.
@@ -220,7 +237,7 @@ docker image prune # Remove old images
 
 Visit the [wiki page](https://github.com/mrlt8/docker-wyze-bridge/wiki/Home-Assistant) for additional information on Home Assistant.
 
-[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmrlt8%2Fdocker-wyze-bridge)
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fidisposable%2Fdocker-wyze-bridge)
 
 
 ## Additional Info
