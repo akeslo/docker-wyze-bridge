@@ -104,6 +104,8 @@ class MtxServer:
                 client: dict = {"permissions": [{"action": "read"}]}
                 if api:
                     client.update({"user": "wb", "pass": api})
+                else:
+                    client.update({"user": "any"})
                 mtx.add("authInternalUsers", client)
             if stream:
                 logger.info("[MTX] Custom stream auth enabled")
