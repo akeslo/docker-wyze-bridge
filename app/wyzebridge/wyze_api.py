@@ -41,7 +41,7 @@ def cached(func: Callable[..., Any]) -> Callable[..., Any]:
             except OSError:
                 logger.info(f"🔍 Could not find local cache for '{name}'")
             except Exception as ex:
-                logger.warning(f"Error restoring data: {ex}")
+                logger.warning(f"Error restoring data for '{name}': [{type(ex).__name__}] {ex}")
                 self.clear_cache()
         logger.info(f"☁️ Fetching '{name}' from the Wyze API...")
         result = func(self, *args, **kwargs)
@@ -64,9 +64,9 @@ def authenticated(func: Callable[..., Any]) -> Callable[..., Any]:
             self.refresh_token()
             return func(self, *args, **kwargs)
         except (RateLimitError, wyzecam.api.WyzeAPIError) as ex:
-            logger.error(f"[API] {ex}")
+            logger.error(f"[API] [{type(ex).__name__}] {ex}")
         except ConnectionError as ex:
-            logger.warning(f"[API] {ex}")
+            logger.warning(f"[API] [{type(ex).__name__}] {ex}")
 
     return wrapper
 
@@ -147,7 +147,7 @@ class WyzeApi:
                 key_id=self.creds.key_id,
             )
         except WyzeAPIError as ex:
-            logger.error(f"[API] {ex}")
+            logger.error(f"[API] [{type(ex).__name__}] {ex}")
             if ex.code == "1000":
                 logger.error("[API] Clearing credentials. Please try again.")
                 self.creds.reset_creds()
@@ -157,7 +157,7 @@ class WyzeApi:
             if hasattr(ex, "response") and ex.response.text:
                 logger.error(f"[API] Response: {ex.response.text}")
         except (ValueError, RateLimitError, RequestException) as ex:
-            logger.error(f"[API] {ex}")
+            logger.error(f"[API] [{type(ex).__name__}] {ex}")
         finally:
             if not web and not self.auth:
                 logger.info("[API] Cool down for 20s before trying again.")
@@ -240,7 +240,7 @@ class WyzeApi:
             img = get(thumb)
             img.raise_for_status()
         except Exception as ex:
-            logger.warning(f"ERROR pulling thumbnail：{ex}")
+            logger.warning(f"[API] ERROR pulling thumbnail '{thumb}'：[{type(ex).__name__}] {ex}")
             return False
         with open(save_to, "wb") as f:
             f.write(img.content)
@@ -261,9 +261,9 @@ class WyzeApi:
             wss = wyzecam.api.get_cam_webrtc(self.auth, cam.mac)
             return wss | {"result": "ok", "cam": cam_name}
         except (HTTPError, WyzeAPIError) as ex:
+            logger.warning(f"[API] Error fetching signaling data [{type(ex).__name__}] {ex}")
             if isinstance(ex, HTTPError) and ex.response.status_code == 404:
                 ex = "Camera does not support WebRTC"
-            logger.warning(ex)
             return {"result": str(ex), "cam": cam_name}
 
     @authenticated
@@ -277,7 +277,7 @@ class WyzeApi:
             pickle_dump("auth", self.auth)
             return self.auth
         except Exception as ex:
-            logger.error(f"{ex}")
+            logger.error(f"[API] Exception refreshing token [{type(ex).__name__}] {ex}")
             logger.warning("⏰ Expired refresh token?")
             return self.login(fresh_data=True)
 
@@ -295,7 +295,7 @@ class WyzeApi:
             resp = wyzecam.api.run_action(self.auth, cam, action.lower())
             return {"status": "success", "response": resp["result"]}
         except (ValueError, WyzeAPIError) as ex:
-            logger.error(f"[CONTROL] ERROR: {ex}")
+            logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
             return {"status": "error", "response": str(ex)}
 
     @authenticated
@@ -306,7 +306,7 @@ class WyzeApi:
             resp = post_device(self.auth, "get_device_Info", params, api_version=2)
             property_list = resp["property_list"]
         except (ValueError, WyzeAPIError) as ex:
-            logger.error(f"[CONTROL] ERROR: {ex}")
+            logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
             return {"status": "error", "response": str(ex)}
 
         if cmd in resp:
@@ -316,7 +316,7 @@ class WyzeApi:
             return {"status": "success", "response": property_list}
 
         if not (item := next((i for i in property_list if i["pid"] == pid), None)):
-            logger.error(f"[CONTROL] ERROR: {pid} not found")
+            logger.error(f"[CONTROL] Error: {pid} not found")
             return {"status": "error", "response": f"{pid} not found"}
 
         return {"status": "success", "value": item.get("value"), "response": item}
@@ -332,7 +332,7 @@ class WyzeApi:
         try:
             res = post_device(self.auth, "set_property", params, api_version=2)
         except (ValueError, WyzeAPIError) as ex:
-            logger.error(f"[CONTROL] ERROR: {ex}")
+            logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
             return {"status": "error", "response": str(ex)}
 
         return {"status": "success", "response": res.get("result")}
@@ -355,10 +355,10 @@ class WyzeApi:
             resp = post_device(self.auth, "get_event_list", params, api_version=4)
             return time(), resp["event_list"]
         except RateLimitError as ex:
-            logger.error(f"[EVENTS] RateLimitError: {ex}, cooling down.")
+            logger.error(f"[EVENTS] RateLimitError: [{type(ex).__name__}] {ex}, cooling down.")
             return ex.reset_by, []
         except (HTTPError, RequestException, WyzeAPIError) as ex:
-            logger.error(f"[EVENTS] {type(ex).__name__}: {ex}, cooling down.")
+            logger.error(f"[EVENTS] Error: {type(ex).__name__}: {ex}, cooling down.")
             return time() + 60, []
 
     @authenticated
@@ -374,7 +374,7 @@ class WyzeApi:
             return {"status": "success", "response": "success"}
         except ValueError as ex:
             error = f'{ex.args[0].get("code")}: {ex.args[0].get("msg")}'
-            logger.error(f"[CONTROL] ERROR: {error}")
+            logger.error(f"[CONTROL] Error: {error}")
             return {"status": "error", "response": f"{error}"}
 
     def clear_cache(self, name: Optional[str] = None):

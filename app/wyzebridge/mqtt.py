@@ -31,9 +31,9 @@ def mqtt_enabled(func):
             try:
                 return func(*args, **kwargs)
             except (ConnectionRefusedError, TimeoutError, gaierror) as ex:
-                logger.error(f"[MQTT] {ex}. Retrying {retry}/{RETRIES}...")
+                logger.error(f"[MQTT]  [{type(ex).__name__}] {ex}. Retrying {retry}/{RETRIES}...")
             except Exception as ex:
-                logger.error(f"[MQTT] {ex}")
+                logger.error(f"[MQTT] [{type(ex).__name__}] {ex}")
             sleep(1)
 
         logger.error(f"[MQTT] {RETRIES}/{RETRIES} retries failed. Disabling MQTT.")

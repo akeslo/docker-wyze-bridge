@@ -148,7 +148,10 @@ class MtxServer:
         if self.sub_process:
             return
         logger.info(f"[MTX] starting MediaMTX {getenv('MTX_TAG')}")
-        self.sub_process = Popen(["/app/mediamtx", "/app/mediamtx.yml"])
+        self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"],
+                                 stdout=None,  # None means inherit from parent process
+                                 stderr=None   # None means inherit from parent process
+        )
 
     def stop(self):
         if not self.sub_process:
@@ -214,8 +217,8 @@ def generate_certificates(cert_path):
         logger.info("[MTX] 🔐 Generating key for LL-HLS")
         Popen(
             ["openssl", "genrsa", "-out", f"{cert_path}.key", "2048"],
-            stdout=DEVNULL,
-            stderr=DEVNULL,
+            stdout=None,  # None means inherit from parent process
+            stderr=None   # None means inherit from parent process
         ).wait()
     if not Path(f"{cert_path}.crt").is_file():
         logger.info("[MTX] 🔏 Generating certificate for LL-HLS")
@@ -227,8 +230,8 @@ def generate_certificates(cert_path):
             + (["-addext", f"subjectAltName = DNS:{dns}"] if dns else [])
             + ["-out", f"{cert_path}.crt"]
             + ["-days", "3650"],
-            stdout=DEVNULL,
-            stderr=DEVNULL,
+            stdout=None,  # None means inherit from parent process
+            stderr=None   # None means inherit from parent process
         ).wait()
 
 
