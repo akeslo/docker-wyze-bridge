@@ -376,14 +376,14 @@ class WyzeIOTCSession:
                     timeout=5
                 )
             except Exception:
-                logger.warning("RTSP Check Failed.")
+                logger.warning("[IOTC] RTSP Check Failed.")
                 return
         if not resp:
-            logger.info("Could not determine if RTSP is supported.")
+            logger.info("[IOTC] Could not determine if RTSP is supported.")
             return
         logger.debug(f"RTSP={resp}")
         if not resp[0]:
-            logger.info("RTSP disabled in the app.")
+            logger.info("[IOTC] RTSP disabled in the app.")
             if not start_rtsp:
                 return
             try:
@@ -392,7 +392,7 @@ class WyzeIOTCSession:
                         timeout=5
                     )
             except Exception:
-                logger.warning("Can't start RTSP server on camera.")
+                logger.warning("[IOTC] Can't start RTSP server on camera.")
                 return
         if len(decoded_url := resp.decode().split("rtsp://")) > 1:
             return f"rtsp://{decoded_url[1]}"
@@ -563,11 +563,11 @@ class WyzeIOTCSession:
             fd = os.open(fifo, os.O_RDWR | os.O_NONBLOCK)
             with os.fdopen(fd, "rb", buffering=0) as pipe:
                 while data_read := pipe.read(size):
-                    logger.debug(f"Flushed {len(data_read)} from {pipe_type} pipe")
+                    logger.debug(f"[IOTC] Flushed {len(data_read)} from {pipe_type} pipe")
                     if gap:
                         break
-        except Exception as e:
-            logger.warning(f"Flushing Error: {e}")
+        except Exception as ex:
+            logger.warning(f"[IOTC] Flushing Error: [{type(ex).__name__}] {ex}")
 
     def recv_audio_data(self) -> Iterator[bytes]:
         assert self.av_chan_id is not None, "Please call _connect() first!"
@@ -587,7 +587,7 @@ class WyzeIOTCSession:
                 yield frame_data
 
         except tutk.TutkError as ex:
-            warnings.warn(ex.name)
+            logger.warning(f"[IOTC] Error: [{type(ex).__name__}] {ex}")
         finally:
             self.state = WyzeIOTCSessionState.CONNECTING_FAILED
 
@@ -607,12 +607,12 @@ class WyzeIOTCSession:
 
         except IOError as ex:
             if ex.errno != errno.EPIPE:  # Broken pipe
-                warnings.warn(str(ex))
+                logger.warning(f"[IOTC] Error: [{type(ex).__name__}] {ex}")
         finally:
             self.audio_pipe_ready = False
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(fifo_path)
-            warnings.warn("Audio pipe closed")
+            logger.warning("[IOTC] Audio pipe closed")
 
     def _sync_audio_frame(self, frame_info):
         # Some cams can't sync
@@ -622,17 +622,17 @@ class WyzeIOTCSession:
         gap = float(f"{frame_info.timestamp}.{frame_info.timestamp_ms}") - self.frame_ts
 
         if abs(gap) > 5:
-            logger.debug(f"[audio] out of sync {gap=}")
+            logger.debug(f"[AUDIO] out of sync {gap=}")
             self.clear_buffer()
 
         if gap < -1:
-            logger.debug(f"[audio] behind video.. {gap=}")
+            logger.debug(f"[AUDIO] behind video.. {gap=}")
             self.flush_pipe("audio", gap)
 
         if gap > 0:
             self._sleep_buffer += gap
         if gap > 1:
-            logger.debug(f"[audio] ahead of video.. {gap=}")
+            logger.debug(f"[AUDIO] ahead of video.. {gap=}")
             time.sleep(gap / 2)
 
     def get_audio_sample_rate(self) -> int:

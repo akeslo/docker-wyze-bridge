@@ -53,7 +53,7 @@ def pull_last_image(cam: dict, path: str, as_snap: bool = False):
                 with open(f"{cam['img_dir']}{cam['uri']}{save_name}", "wb") as img:
                     img.write(resp.content)
     except requests.exceptions.ConnectionError as ex:
-        logger.error(ex)
+        logger.error(f"[IMAGE] Error: [{type(ex).__name__}] {ex}")
     finally:
         cam["last_photo"] = file_name, modded
 
@@ -393,7 +393,7 @@ def motion_alarm(cam: dict):
             resp = requests.get(http.format(cam_name=cam["uri"]))
             resp.raise_for_status()
         except requests.exceptions.HTTPError as ex:
-            logger.error(ex)
+            logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
 
 
 def parse_fw(fw_ver: str) -> tuple[str, tuple[int, ...]]:

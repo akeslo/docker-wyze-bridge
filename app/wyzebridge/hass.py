@@ -26,8 +26,8 @@ def setup_hass(hass_token: Optional[str]) -> None:
         for i in net_info["data"]["interfaces"]:
             if i["primary"]:
                 environ["WB_IP"] = i["ipv4"]["address"][0].split("/")[0]
-    except Exception as e:
-        logger.error(f"WEBRTC SETUP: {e}")
+    except Exception as ex:
+        logger.error(f"WEBRTC SETUP: [{type(ex).__name__}] {ex}")
 
     mqtt_conf = requests.get("http://supervisor/services/mqtt", headers=auth).json()
     if "ok" in mqtt_conf.get("result") and (data := mqtt_conf.get("data")):
