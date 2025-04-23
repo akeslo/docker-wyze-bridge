@@ -1,3 +1,7 @@
+## What's Changed in v3.0.7-beta1
+
+- Better logging of exceptions and pass the MediaMTX messages through to main logs
+
 ## What's Changed in v3.0.6
 
 - Revert MediaMTX to 1.11.3 because 1.12 doesn't work here.
