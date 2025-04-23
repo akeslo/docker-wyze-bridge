@@ -26,4 +26,4 @@ def send_webhook(event: str, camera: str, msg: str, img: Optional[str] = None) -
         resp = requests.post(url, headers=header, data=msg, verify=False)
         resp.raise_for_status()
     except Exception as ex:
-        print(f"[WEBHOOKS] {ex}")
+        print(f"[WEBHOOKS] [{type(ex).__name__}] {ex}")

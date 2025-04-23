@@ -215,7 +215,7 @@ class StreamManager:
         except TimeoutExpired:
             logger.error(f"[{cam_name}] Snapshot timed out")
         except Exception as ex:
-            logger.error(ex)
+            logger.error(f"[{cam_name}] [{type(ex).__name__}] {ex}")
         stop_subprocess(ffmpeg)
 
         return False

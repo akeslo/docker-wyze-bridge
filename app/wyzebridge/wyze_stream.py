@@ -450,16 +450,16 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
         if ex.code in {-10, -13, -19, -68, -90}:
             exit_code = ex.code
     except ValueError as ex:
-        logger.warning(ex)
+        logger.warning(f"[TUTK] Error: [{type(ex).__name__}] {ex}")
         if ex.args[0] == "ENR_AUTH_FAILED":
             logger.warning("⏰ Expired ENR?")
             exit_code = -19
     except BrokenPipeError:
-        logger.info("FFMPEG stopped")
+        logger.info("[TUTK] FFMPEG stopped")
     except Exception as ex:
-        logger.warning(f"[{type(ex).__name__}] {ex}")
+        logger.warning(f"[TUTK] Exception: [{type(ex).__name__}] {ex}")
     else:
-        logger.warning("Stream stopped")
+        logger.warning("[TUTK] Stream stopped")
     finally:
         state.value = exit_code
         stop_and_wait(audio_thread)
@@ -536,7 +536,7 @@ def get_camera_info(sess: WyzeIOTCSession) -> tuple[str, str]:
 def get_video_params(sess: WyzeIOTCSession) -> tuple[str, int]:
     cam_info = sess.camera.camera_info
     if not cam_info or not (video_param := cam_info.get("videoParm")):
-        logger.warn("⚠️ camera_info is missing videoParm. Using default values.")
+        logger.warning("⚠️ camera_info is missing videoParm. Using default values.")
         video_param = {"type": "h264", "fps": 20}
 
     fps = int(video_param.get("fps", 0))
