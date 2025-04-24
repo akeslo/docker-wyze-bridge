@@ -240,7 +240,7 @@ class WyzeApi:
             img = get(thumb)
             img.raise_for_status()
         except Exception as ex:
-            logger.warning(f"[API] ERROR pulling thumbnail '{thumb}'：[{type(ex).__name__}] {ex}")
+            logger.warning(f"[API] ERROR pulling thumbnail：[{type(ex).__name__}] {ex}")
             return False
         with open(save_to, "wb") as f:
             f.write(img.content)
