@@ -38,7 +38,7 @@ class MtxInterface:
 
     def _save_config(self):
         with open(MTX_CONFIG, "w") as f:
-            yaml.safe_dump(self.data, f)
+            yaml.safe_dump(self.data, f, sort_keys=False)
 
     def get(self, path: str):
         keys = path.split(".")
