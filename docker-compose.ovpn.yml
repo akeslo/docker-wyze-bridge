@@ -3,13 +3,18 @@ services:
     image: dperson/openvpn-client
     container_name: openvpn
     restart: unless-stopped
-    ports: # Configure all ports here:
-      - 1935:1935 # RTMP
-      - 8554:8554 # RTSP
-      - 8888:8888 # HLS
-      - 8889:8889 #WebRTC
-      - 8189:8189/udp # WebRTC/ICE
-      - 5000:5000 # WEB-UI
+    ports:
+      - 1935:1935 # RTMP rtmp://localhost:1935/mystream?user=myuser&pass=mypass
+      - 1936:1936 # RTMP rtmp://localhost:1936/mystream?user=myuser&pass=mypass
+      - 2935:2935 # RTMPS rtmps://localhost:2935/mystream?user=myuser&pass=mypass
+      - 2936:2936 # RTMPS rtmps://localhost:2936/mystream?user=myuser&pass=mypass
+      - 8189:8189/udp # WebRTC/ICE UDP
+      - 8322:8322 # TCP/TLS/RTSPS rtsps://localhost:8322/mystream
+      - 8554:8554 # RTSP rtsp://localhost:8554/mystream
+      - 8888:8888 # HLS http://localhost:8888/mystream
+      - 8889:8889 # WebRTC http://localhost:8889/mystream and http://localhost:8889/mystream/whep
+      - 8890:8890/udp # SRT UDP srt://localhost:8890?streamid=read:mystream:myuser:mypass
+      - 5000:5000 # WEB-UI http://localhost:5000/mystream
     dns: [8.8.8.8]
     cap_add: [NET_ADMIN]
     command: '-f /vpn/config.ovpn'

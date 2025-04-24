@@ -38,7 +38,7 @@ class MtxInterface:
 
     def _save_config(self):
         with open(MTX_CONFIG, "w") as f:
-            yaml.safe_dump(self.data, f)
+            yaml.safe_dump(self.data, f, sort_keys=False)
 
     def get(self, path: str):
         keys = path.split(".")
@@ -92,34 +92,34 @@ class MtxServer:
             mtx.set("pathDefaults.recordDeleteAfter", RECORD_KEEP)
 
     def setup_auth(self, api: Optional[str], stream: Optional[str]):
-        administrator = [
-            {
+        administrator: dict = {
                 "user": "any",
                 "ips": ["127.0.0.1", "::1"],
                 "permissions": [{"action": "api"}, {"action": "metrics"}, {"action": "pprof"}]
             }
-        ]
-        publisher = [
-            {
+        publisher: dict = {
                 "user": "any",
                 "ips": ["127.0.0.1", "::1"],
                 "permissions": [{"action": "read"}, {"action": "playback"}, {"action": "publish"}]
             }
-        ]
+
         with MtxInterface() as mtx:
-            mtx.set("authInternalUsers", administrator)
+            mtx.set("authInternalUsers", [])
+            mtx.add("authInternalUsers", administrator)
             mtx.add("authInternalUsers", publisher)
-            if api or not stream:
-                client: dict = {"permissions": [{"action": "read"}, {"action": "playback"}]}
+            if (api or not stream):
+                client: dict = { }
                 if api:
                     client.update({"user": "wb", "pass": api})
                 else:
                     client.update({"user": "any"})
+                client.update({"permissions": [{"action": "read"}, {"action": "playback"}]})
                 mtx.add("authInternalUsers", client)
             if stream:
                 logger.info("[MTX] Custom stream auth enabled")
                 for client in parse_auth(stream):
                     mtx.add("authInternalUsers", client)
+
 
     def add_path(self, uri: str, on_demand: bool = True):
         with MtxInterface() as mtx:
@@ -244,15 +244,17 @@ def parse_auth(auth: str) -> list[dict[str, str]]:
         user, password, *ips = creds.split(":", 2)
         if ips:
             ips = ips[0].split(",")
-        data = {"user": user or "any", "pass": password, "ips": ips, "permissions": []}
+        data: dict = {"user": user or "any", "pass": password, "ips": ips, "permissions": []}
         if endpoints:
             paths = []
             for endpoint in endpoints[0].split(","):
                 paths.append(endpoint)
-                data["permissions"].append([{"action": "read", "path": endpoint}, {"action": "playback", "path": endpoint}])
+                data["permissions"].append({"action": "read", "path": endpoint})
+                data["permissions"].append({"action": "playback", "path": endpoint})
         else:
             paths = "all"
-            data["permissions"].append([{"action": "read"}, {"action": "playback"}])
+            data["permissions"].append({"action": "read"})
+            data["permissions"].append({"action": "playback"})
         logger.info(f"[MTX] Auth [{data['user']}:{data['pass']}] {paths=}")
         entries.append(data)
     return entries

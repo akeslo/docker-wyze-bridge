@@ -1,6 +1,8 @@
-## What's Changed in v3.0.7-beta1
+## What's Changed in v3.0.7-beta2
 
 - Better logging of exceptions and pass the MediaMTX messages through to main logs
+- Correct building of permissions for MediaMTX
+- Documented all the possible points in the docker-compose files.
 
 ## What's Changed in v3.0.6
 
