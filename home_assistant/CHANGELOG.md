@@ -1,3 +1,7 @@
+## What's Changed in v3.0.8-alpha
+
+- Attempt upgrade of MediaMTX to 1.12.0 (again)
+
 ## What's Changed in v3.0.7
 
 - Better logging of exceptions and pass the MediaMTX messages through to main logs
