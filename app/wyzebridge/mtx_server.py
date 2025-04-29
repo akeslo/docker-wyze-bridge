@@ -12,8 +12,8 @@ MTX_CONFIG = "/app/mediamtx.yml"
 
 RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
-rec_file = env_bool("RECORD_FILE_NAME", style="original").strip("/")
-rec_path = env_bool("RECORD_PATH", "record/%path/%Y-%m-%d_%H-%M-%S", style="original")
+rec_file = env_bool("RECORD_FILE_NAME", "%H%M%S", style="original").strip("/")
+rec_path = env_bool("RECORD_PATH", "record/%path/%Y/%m/%d/", style="original")
 RECORD_PATH = f"{Path('/') / Path(rec_path) / Path(rec_file)}".removesuffix(".mp4")
 
 

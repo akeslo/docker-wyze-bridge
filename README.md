@@ -57,9 +57,11 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
-## What's Changed in v3.0.8-alpha
+## What's Changed in v3.10.0
 
 - Attempt upgrade of MediaMTX to 1.12.0 (again)
+- Fixed schema of RECORD_LENGTH config option (it needs an `s` or `h` suffix, so must be string)
+- Added RECORD_KEEP to the config.yml so it can be actually be configured in the add-on
 
 ## What's Changed in v3.0.7
 
@@ -157,9 +159,15 @@ Recoding streams has been updated to use MediaMTX with the option to delete olde
 
 Use `RECORD_ALL` or `RECORD_CAM_NAME` to enable recording.
 
+- `RECORD_FILE_NAME` Available variables are `%path` or `{cam_name}`, `%Y` `%m` `%d` `%H` `%M` `%S` `%f` `%s` (time in strftime format).
 - `RECORD_PATH` Available variables are `%path` or `{cam_name}`, `%Y` `%m` `%d` `%H` `%M` `%S` `%f` `%s` (time in strftime format).
 - `RECORD_LENGTH` Length of each clip. Use `s` for seconds , `h` for hours. Defaults to `60s`
 - `RECORD_KEEP` Delete older clips. Use `s` for seconds , `h` for hours. Set to 0s to disable automatic deletion. Defaults to `0s`
+
+Note that as of release v3.10.0, which uses *mediaMTX 1.12.0*, requires the combination of your `RECORD_FILE_NAME` and `RECORD_PATH` settings 
+specifying recording's file complete path **MUST** reference **ALL** of `%Y` `%m` `%d` `%H` `%M` `%S` tokens, for example:
+`RECORD_FILE_NAME = "%H%M%S%"` and `RECORD_PATH_NAME = "{path}/{cam_name}/%Y/%m/%d%"` would be valid. You can also just 
+ensure the combined path includes `%s` (which is the unix epoch value as an integer).
 
 [View previous changes](https://github.com/idisposable/docker-wyze-bridge/releases)
 
