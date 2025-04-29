@@ -75,7 +75,8 @@ schema:
   DISABLE_CONTROL: bool?
   RTSP_FW: bool?
   RECORD_ALL: bool?
-  RECORD_LENGTH: int?
+  RECORD_KEEP: str?
+  RECORD_LENGTH: str?
   RECORD_PATH: str?
   RECORD_FILE_NAME: str?
   MQTT: bool

@@ -1,6 +1,8 @@
-## What's Changed in v3.0.8-alpha
+## What's Changed in v3.10.0
 
 - Attempt upgrade of MediaMTX to 1.12.0 (again)
+- Fixed schema of RECORD_LENGTH config option (it needs an `s` or `h` suffix, so must be string)
+- Added RECORD_KEEP to the config.yml so it can be actually be configured in the add-on
 
 ## What's Changed in v3.0.7
 
