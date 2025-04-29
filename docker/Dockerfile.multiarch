@@ -24,10 +24,12 @@ RUN echo "BUILDING IMAGE FOR ${TARGETARCH}" && \
     cd /build \
     && . app/.env \
     && mkdir -p tokens img \
-    && curl -SL https://github.com/homebridge/ffmpeg-for-homebridge/releases/latest/download/ffmpeg-alpine-${FFMPEG_ARCH}.tar.gz \
-    | tar xzf - -C . \
-    && curl -SL https://github.com/bluenviron/mediamtx/releases/download/v${MTX_TAG}/mediamtx_v${MTX_TAG}_linux_${MTX_ARCH}.tar.gz \
-    | tar xzf - -C app \
+    && curl -fSL https://github.com/homebridge/ffmpeg-for-homebridge/releases/latest/download/ffmpeg-alpine-${FFMPEG_ARCH}.tar.gz -o ffmpeg.tar.gz \
+    && tar tzf ffmpeg.tar.gz || (echo "Invalid ffmpeg tarball for ${FFMPEG_ARCH}" && exit 1) \
+    && tar xzf ffmpeg.tar.gz -C . \
+    && curl -fSL https://github.com/bluenviron/mediamtx/releases/download/v${MTX_TAG}/mediamtx_v${MTX_TAG}_linux_${MTX_ARCH}.tar.gz -o mediamtx.tar.gz \
+    && tar tzf mediamtx.tar.gz || (echo "Invalid mediamtx tarball for ${MTX_ARCH}" && exit 1) \
+    && tar xzf mediamtx.tar.gz -C app \
     && cp app/lib/lib.${TARGETARCH} usr/local/lib/libIOTCAPIs_ALL.so \
     && rm -rf app/*.txt app/lib/  \ 
     && if [ -z "${BUILD_DATE}" ]; then echo BUILD_DATE=$(date) > .build_date; else echo BUILD_DATE=${BUILD_DATE} > .build_date; fi
