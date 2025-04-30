@@ -1,9 +1,9 @@
 name: Docker Wyze Bridge
-description: WebRTC/RTSP/RTMP/LL-HLS bridge for Wyze cams in a docker container
+description: WebRTC/RTSP/RTMP/LL-HLS bridge for Wyze cams in a docker container.
 slug: docker_wyze_bridge
 url: https://github.com/idisposable/docker-wyze-bridge
 image: idisposablegithub365/wyze-bridge
-version: 3.10.0
+version: 3.10.1-alpha
 stage: stable
 arch:
   - armv7
@@ -38,6 +38,7 @@ map:
   - ssl:ro
 services:
   - mqtt:want
+video: true
 ingress: true
 ingress_port: 5000
 panel_icon: mdi:bridge
@@ -47,6 +48,7 @@ options:
   WB_AUTH: true
   MOTION_API: true
   MQTT: true
+  MQTT_DTOPIC: homeassistant
   CAM_OPTIONS: []
 schema:
   WYZE_EMAIL: email?
@@ -56,6 +58,7 @@ schema:
   WB_IP: str?
   REFRESH_TOKEN: str?
   ACCESS_TOKEN: str?
+  TOTP_KEY: str?
   NET_MODE: list(LAN|P2P|ANY)?
   SNAPSHOT: list(API|RTSP|RTSP15|RTSP30|RTSP60|RTSP180|RTSP300|Disable)?
   SNAPSHOT_FORMAT: str?
