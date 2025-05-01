@@ -1,7 +1,7 @@
 name: Docker Wyze Bridge (HW branch)
-description: HW build. Use the REBUILD button to pull latest image.
+description: WebRTC/RTSP/RTMP/LL-HLS bridge for Wyze cams in a docker container. HW build. Use the REBUILD button to pull latest image.
 slug: docker_wyze_bridge_hw
-url: "https://github.com/idisposable/docker-wyze-bridge"
+url: https://github.com/idisposable/docker-wyze-bridge
 version: hw
 stage: experimental
 arch:
@@ -13,16 +13,16 @@ hassio_api: true
 host_network: true
 ports:
   1935/tcp: 1935
+  8189/udp: 8189
   8554/tcp: 8554
   8888/tcp: 8888
-  8189/udp: 8189
   8889/tcp: 8889
   5000/tcp: 5000
 ports_description:
   1935/tcp: RTMP streams
+  8189/udp: WebRTC ICE/UDP
   8554/tcp: RTSP streams
   8888/tcp: HLS streams
-  8189/udp: WebRTC ICE
   8889/tcp: WebRTC streams
   5000/tcp: Web-UI/Snapshots
 environment:
@@ -45,6 +45,7 @@ options:
   WB_AUTH: true
   MOTION_API: true
   MQTT: true
+  MQTT_DTOPIC: homeassistant
   CAM_OPTIONS: []
 schema:
   WYZE_EMAIL: email?
@@ -54,6 +55,7 @@ schema:
   WB_IP: str?
   REFRESH_TOKEN: str?
   ACCESS_TOKEN: str?
+  TOTP_KEY: str?
   NET_MODE: list(LAN|P2P|ANY)?
   SNAPSHOT: list(API|RTSP|RTSP15|RTSP30|RTSP60|RTSP180|RTSP300|Disable)?
   SNAPSHOT_FORMAT: str?
