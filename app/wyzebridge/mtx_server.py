@@ -12,10 +12,9 @@ MTX_CONFIG = "/app/mediamtx.yml"
 
 RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
-rec_file = env_bool("RECORD_FILE_NAME", "%H%M%S", style="original").strip("/")
-rec_path = env_bool("RECORD_PATH", "record/%path/%Y/%m/%d/", style="original")
-RECORD_PATH = f"{Path('/') / Path(rec_path) / Path(rec_file)}".removesuffix(".mp4")
-
+REC_FILE = env_bool("RECORD_FILE_NAME", "%Y-%m-%d-%H-%M-%S", style="original").strip("/")
+REC_PATH = env_bool("RECORD_PATH", "record/%path/%Y/%m/%d/", style="original")
+RECORD_PATH = f"{Path('/') / Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4")
 
 class MtxInterface:
     __slots__ = "data", "_modified"
@@ -78,7 +77,7 @@ class MtxServer:
         self._setup_path_defaults()
 
     def _setup_path_defaults(self):
-        record_path = RECORD_PATH.format(cam_name="%path", CAM_NAME="%path")
+        record_path = ensure_record_path().format(cam_name="%path", CAM_NAME="%path")
 
         with MtxInterface() as mtx:
             mtx.set("paths", {})
@@ -135,7 +134,7 @@ class MtxServer:
             mtx.set(f"paths.{uri}.source", value)
 
     def record(self, uri: str):
-        record_path = RECORD_PATH.replace("%path", uri).format(
+        record_path = ensure_record_path().replace("%path", uri).format(
             cam_name=uri.lower(), CAM_NAME=uri.upper()
         )
 
@@ -202,6 +201,18 @@ class MtxServer:
             generate_certificates(cert_path)
             mtx.set("hlsServerKey", f"{cert_path}.key")
             mtx.set("hlsServerCert", f"{cert_path}.crt")
+
+
+def ensure_record_path() -> str:
+    record_path = RECORD_PATH
+
+    if "%s" in record_path or all(x in record_path for x in ["%Y", "%m", "%d", "%H", "%M", "%S"]):
+        logger.info(f"[MTX] The computed record_path: '{record_path}' IS VALID")
+    else:
+        logger.warning(f"[MTX] The computed record_path: '{record_path}' IS NOT VALID, appending the %%s to the pattern")
+        record_path += "_%s"
+
+    return record_path
 
 
 def mtx_version() -> str:
