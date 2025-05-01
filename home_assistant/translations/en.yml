@@ -11,6 +11,9 @@ configuration:
   ACCESS_TOKEN:
     name: Access Token
     description: Use existing access token for authentication.
+  TOTP_KEY:
+    name: TOTP Key
+    description: Time-based one-time password shared secret key.
   NET_MODE:
     name: Allowed Net Modes
   SNAPSHOT:

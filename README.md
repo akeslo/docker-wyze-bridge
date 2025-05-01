@@ -57,6 +57,10 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.10.1-alpha
+
+- Add TOTP_KEY to schema to avoid logged warning noise
+
 ## What's Changed in v3.10.0
 
 - Attempt upgrade of MediaMTX to 1.12.0 (again)

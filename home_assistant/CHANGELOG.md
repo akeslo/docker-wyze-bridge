@@ -1,3 +1,7 @@
+## What's Changed in v3.10.1-alpha
+
+- Add TOTP_KEY to schema to avoid logged warning noise
+
 ## What's Changed in v3.10.0
 
 - Attempt upgrade of MediaMTX to 1.12.0 (again)
