@@ -57,9 +57,15 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
-## What's Changed in v3.10.1-alpha
+## What's Changed in v3.10.1
 
-- Add TOTP_KEY to schema to avoid logged warning noise
+- Add `TOTP_KEY` and `MQTT_DTOPIC` to *config.yml* schema to avoid logged warning noise
+- Add `MQTT_DTOPIC` to *config.yml* options to ensure a usable default
+- Add `video: true` to all the *config.yml* variants to ensure hardware encoding can
+  use video card
+- Upgrade to `python:3.13-slim-bookworm` for docker base image
+- Cleaned up Dockerfile scripts for testing and multiarch
+- Safer docker build by testing the tarballs downloaded for MediaMTX or FFMpeg
 
 ## What's Changed in v3.10.0
 
