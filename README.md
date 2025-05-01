@@ -57,6 +57,20 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.10.2
+
+- Added code to protect against the aggressive syntax check in MediaMTX 1.12.0 which 
+  complains about the `recordPath` missing required elements even when recording is
+  not enabled (it really shouldn't validate that setting unless one or more paths
+  request recording...and didn't through 1.11.3).
+  For reference, the pattern is computed from our `RECORD_PATH` and `RECORD_FILE_NAME`
+  settings and the combination of them must contain the `strftime` format specifiers
+  of *either* a `"%s"` or **all** of of "%Y", "%m", "%d", "%H", "%M", "%S" (case-sensitive).
+  If the value is not compliant, to keep MediaMTX from erroring out, we append `"_%s"` whatever 
+  was specified and emit a warning.
+- Changed the default `RECORD_PATH` to `"record/%path/%Y/%m/%d/"`
+- Changed the default `RECORD_FILE_NAME` to `"%Y-%m-%d-%H-%M-%S"`
+
 ## What's Changed in v3.10.1
 
 - Add `TOTP_KEY` and `MQTT_DTOPIC` to *config.yml* schema to avoid logged warning noise
