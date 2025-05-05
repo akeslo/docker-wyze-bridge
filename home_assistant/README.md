@@ -24,7 +24,7 @@ Please consider [supporting](https://ko-fi.com/mrlt8) this project if you found 
 ## System Compatibility
 
 ![Supports arm32v7 Architecture](https://img.shields.io/badge/arm32v7-yes-success.svg)
-![Supports arm64v8 Architecture](https://img.shields.io/badge/arm64v8-yes-success.svg)
+![Supports arm64 Architecture](https://img.shields.io/badge/arm64-yes-success.svg)
 ![Supports amd64 Architecture](https://img.shields.io/badge/amd64-yes-success.svg)
 ![Supports Apple Silicon Architecture](https://img.shields.io/badge/apple_silicon-yes-success.svg)
 [![Home Assistant Add-on](https://img.shields.io/badge/home_assistant-add--on-blue.svg?logo=homeassistant&logoColor=white)](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant)

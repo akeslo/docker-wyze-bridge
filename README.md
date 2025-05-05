@@ -209,7 +209,7 @@ ensure the combined path includes `%s` (which is the unix epoch value as an inte
 ## Compatibility
 
 ![Supports arm32v7 Architecture](https://img.shields.io/badge/arm32v7-yes-success.svg)
-![Supports arm64v8 Architecture](https://img.shields.io/badge/arm64v8-yes-success.svg)
+![Supports arm64 Architecture](https://img.shields.io/badge/arm64-yes-success.svg)
 ![Supports amd64 Architecture](https://img.shields.io/badge/amd64-yes-success.svg)
 ![Supports Apple Silicon Architecture](https://img.shields.io/badge/apple_silicon-yes-success.svg)
 
