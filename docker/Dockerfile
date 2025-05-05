@@ -15,7 +15,7 @@ RUN echo "BUILDING IMAGE FOR ${TARGETARCH}" && \
     if [ "$(uname -m)" = "armv7l" ]; \
     then TARGETARCH=arm; FFMPEG_ARCH=arm32v7; MTX_ARCH=armv7; \
     elif [ "$(uname -m)" = "aarch64" ]; \
-    then TARGETARCH=arm64; FFMPEG_ARCH=aarch64; MTX_ARCH=arm64v8; \
+    then TARGETARCH=arm64; FFMPEG_ARCH=aarch64; MTX_ARCH=arm64; \
     else TARGETARCH=amd64; FFMPEG_ARCH=x86_64; MTX_ARCH=amd64; \
     fi \
     && cd /build \
