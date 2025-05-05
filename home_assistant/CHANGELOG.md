@@ -1,3 +1,7 @@
+## What's Changed in v3.10.3
+
+- Bump MediaMTX to 1.12.1
+
 ## What's Changed in v3.10.2
 
 - Added code to protect against the aggressive syntax check in MediaMTX 1.12.0 which 
