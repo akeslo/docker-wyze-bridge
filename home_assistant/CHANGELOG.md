@@ -1,4 +1,4 @@
-## What's Changed in v3.10.4-alpha1
+## What's Changed in v3.10.4
 
 - Catch exceptions when pruning snapshots so we don't stop grabbing them if something breaks a prune.
 - Allow the ffmpeg error messages to reach the normal runtime
