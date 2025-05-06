@@ -2,7 +2,6 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-import threading
 from typing import Optional
 
 from wyzebridge.bridge_utils import LIVESTREAM_PLATFORMS, env_bool, env_cam
