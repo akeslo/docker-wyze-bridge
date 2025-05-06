@@ -8,3 +8,5 @@
 *.env
 *.pyc
 !/app/.env
+
+test_env.list
