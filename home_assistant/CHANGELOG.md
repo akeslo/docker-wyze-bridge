@@ -1,3 +1,7 @@
+## What's Changed in v3.10.5
+
+- Fix regression for snapshot pruning
+
 ## What's Changed in v3.10.4
 
 - Catch exceptions when pruning snapshots so we don't stop grabbing them if something breaks a prune.
