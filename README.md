@@ -61,6 +61,7 @@ See [basic usage](#basic-usage) for additional information or visit the [wiki pa
 
 - Catch exceptions when pruning snapshots so we don't stop grabbing them if something breaks a prune.
 - Allow the ffmpeg error messages to reach the normal runtime
+- Bump to [MediaMTX 1.12.2](https://github.com/bluenviron/mediamtx/releases/tag/v1.12.2) to [fix regression on RaspberryPIs](https://github.com/bluenviron/mediamtx/compare/v1.12.1...v1.12.2)
 
 ## What's Changed in v3.10.3
 
