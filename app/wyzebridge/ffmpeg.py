@@ -186,7 +186,7 @@ def purge_old(base_path: str, extension: str, keep_time: Optional[timedelta]):
             shutil.rmtree(filepath.parent)
             logger.debug(f"[ffmpeg] Deleted empty directory: {filepath.parent}")
 
-def file_modified(file_path: Path) -> datetime:
+def file_modified(file_path: Path) -> float:
     try:
         file_stat = os.stat(file_path)
         return file_stat.st_mtime
@@ -200,7 +200,7 @@ def file_modified(file_path: Path) -> datetime:
         logger.debug(f"Error: An unexpected error occurred: {e}")
 
     # if an Exception occurs, we return the current time, which will never qualify for deletion
-    return datetime.now()
+    return datetime.now().timestamp()
 
 def parse_timedelta(env_key: str) -> Optional[timedelta]:
     value = env_bool(env_key)
