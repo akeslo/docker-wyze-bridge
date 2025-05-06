@@ -2,6 +2,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+import threading
 from typing import Optional
 
 from wyzebridge.bridge_utils import LIVESTREAM_PLATFORMS, env_bool, env_cam
@@ -233,7 +234,9 @@ def rtsp_snap_cmd(cam_name: str, interval: bool = False):
 
     keep_time = parse_timedelta("SNAPSHOT_KEEP")
     if keep_time and SNAPSHOT_FORMAT:
-        purge_old(IMG_PATH, ext, keep_time)
+        thread = threading.Thread(target=purge_old, args=(IMG_PATH, ext, keep_time))
+        thread.start()
+        # thread.join() # we do NOT need to wait for this thread to finish... that's the whole point
 
     rotation = []
     if rotate_img := env_bool(f"ROTATE_IMG_{cam_name}"):
