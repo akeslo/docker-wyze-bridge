@@ -440,7 +440,7 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
             ffmpeg_cmd = get_ffmpeg_cmd(uri, v_codec, audio, stream.camera.is_vertical)
             assert state.value >= StreamStatus.CONNECTING, "Stream Stopped"
             state.value = StreamStatus.CONNECTED
-            with Popen(ffmpeg_cmd, stdin=PIPE) as ffmpeg:
+            with Popen(ffmpeg_cmd, stdin=PIPE, stderr=None) as ffmpeg:
                 for frame in sess.recv_bridge_data():
                     ffmpeg.stdin.write(frame)
 

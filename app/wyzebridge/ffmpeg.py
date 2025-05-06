@@ -176,7 +176,8 @@ def purge_old(base_path: str, extension: str, keep_time: Optional[timedelta]):
         return
     threshold = datetime.now() - keep_time
     for filepath in Path(base_path).rglob(f"*{extension}"):
-        if filepath.stat().st_mtime > threshold.timestamp():
+        modify_time = file_modified(filepath)
+        if modify_time > threshold.timestamp():
             continue
         filepath.unlink()
         logger.debug(f"[ffmpeg] Deleted: {filepath}")
@@ -185,6 +186,21 @@ def purge_old(base_path: str, extension: str, keep_time: Optional[timedelta]):
             shutil.rmtree(filepath.parent)
             logger.debug(f"[ffmpeg] Deleted empty directory: {filepath.parent}")
 
+def file_modified(file_path: Path) -> datetime:
+    try:
+        file_stat = os.stat(file_path)
+        return file_stat.st_mtime
+    except FileNotFoundError:
+        logger.debug(f"Error: File not found: {file_path}")
+    except PermissionError:
+        logger.debug(f"Error: Permission denied: {file_path}")
+    except NotADirectoryError:
+        logger.debug(f"Error: Not a directory: {file_path}")
+    except OSError as e:
+        logger.debug(f"Error: An unexpected error occurred: {e}")
+
+    # if an Exception occurs, we return the current time, which will never qualify for deletion
+    return datetime.now()
 
 def parse_timedelta(env_key: str) -> Optional[timedelta]:
     value = env_bool(env_key)
