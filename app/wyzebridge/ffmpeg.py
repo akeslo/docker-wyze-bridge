@@ -234,9 +234,7 @@ def rtsp_snap_cmd(cam_name: str, interval: bool = False):
 
     keep_time = parse_timedelta("SNAPSHOT_KEEP")
     if keep_time and SNAPSHOT_FORMAT:
-        thread = threading.Thread(target=purge_old, args=(IMG_PATH, ext, keep_time))
-        thread.start()
-        # thread.join() # we do NOT need to wait for this thread to finish... that's the whole point
+        purge_old(IMG_PATH, ext, keep_time)
 
     rotation = []
     if rotate_img := env_bool(f"ROTATE_IMG_{cam_name}"):

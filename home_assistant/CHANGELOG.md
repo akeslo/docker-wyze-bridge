@@ -1,3 +1,8 @@
+## What's Changed in v3.10.4-alpha1
+
+- Catch exceptions when pruning snapshots so we don't stop grabbing them if something breaks a prune.
+- Allow the ffmpeg error messages to reach the normal runtime
+
 ## What's Changed in v3.10.3
 
 - Bump MediaMTX to 1.12.1
