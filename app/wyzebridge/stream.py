@@ -200,7 +200,8 @@ class StreamManager:
         stream.start()
         ffmpeg = self.rtsp_snapshots.get(cam_name)
         if not ffmpeg or ffmpeg.poll() is not None:
-            ffmpeg = Popen(rtsp_snap_cmd(cam_name, interval))
+            # None means inherit from parent process
+            ffmpeg = Popen(rtsp_snap_cmd(cam_name, interval), stderr=None)
             self.rtsp_snapshots[cam_name] = ffmpeg
         return ffmpeg
 
