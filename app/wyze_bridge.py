@@ -59,7 +59,7 @@ class WyzeBridge(Thread):
         WyzeStream.api = self.api
 
         for cam in self.api.filtered_cams():
-            logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}]")
+            logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}] at {cam.name_uri}")
             if config.SNAPSHOT_TYPE == "api":
                 self.api.save_thumbnail(cam.name_uri)
             options = WyzeStreamOptions(
@@ -74,7 +74,7 @@ class WyzeBridge(Thread):
 
             self.mtx.add_path(stream.uri, not options.reconnect)
             if env_cam("record", cam.name_uri):
-                self.mtx.record(stream.uri)
+                self.mtx.record(stream.uri, cam)
             self.streams.add(stream)
 
     def rtsp_fw_proxy(self, cam: WyzeCamera, stream: WyzeStream) -> bool:

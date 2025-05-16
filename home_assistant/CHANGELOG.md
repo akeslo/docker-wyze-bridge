@@ -1,7 +1,12 @@
+## What's Changed in v3.10.7
+
+- Reverted defaulting of RECORD_PATH option specifying `{cam_name}` instead of `%path` (need to fix that another way)
+- Changed the MediaMTX config builder to emit correct config for recording.
+  
 ## What's Changed in v3.10.6
 
-- Changed the documentation and defaults for the RECORD_PATH option to specify `{cam_name}` instead of `%path` to
-  eliminate recording errors
+- ~Changed the documentation and defaults for the RECORD_PATH option to specify `{cam_name}` instead of `%path` to
+  eliminate recording errors~ Reverted in v3.10.7
 - Add exception handling to ffmpeg pruning logic to prevent snapshot prunes from killing each other
 - Now gathers the list of parents that might be pruned and does that after purging the files
 - Fixed python lint message in get_livestream_cmd
@@ -31,7 +36,7 @@
   of *either* a `"%s"` or **all** of of "%Y", "%m", "%d", "%H", "%M", "%S" (case-sensitive).
   If the value is not compliant, to keep MediaMTX from erroring out, we append `"_%s"` whatever 
   was specified and emit a warning.
-- Changed the default `RECORD_PATH` to `"record/{cam_name}/%Y/%m/%d/"`
+- Changed the default `RECORD_PATH` to ~`"record/%path/%Y/%m/%d/"`~ *v3.10.7* `"%path/{cam_name}/%Y/%m/%d"`
 - Changed the default `RECORD_FILE_NAME` to `"%Y-%m-%d-%H-%M-%S"`
 
 ## What's Changed in v3.10.1
