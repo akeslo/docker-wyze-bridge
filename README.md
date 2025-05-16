@@ -57,6 +57,14 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.10.6
+
+- Changed the documentation and defaults for the RECORD_PATH option to specify `{cam_name}` instead of `%path` to
+  eliminate recording errors
+- Add exception handling to ffmpeg pruning logic to prevent snapshot prunes from killing each other
+- Now gathers the list of parents that might be pruned and does that after purging the files
+- Fixed python lint message in get_livestream_cmd
+
 ## What's Changed in v3.10.5
 
 - Fix regression for snapshot pruning
