@@ -7,13 +7,14 @@ from typing import Optional
 import yaml
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
+from wyzecam.api_models import WyzeCamera
 
 MTX_CONFIG = "/app/mediamtx.yml"
 
 RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
-REC_FILE = env_bool("RECORD_FILE_NAME", "%Y-%m-%d-%H-%M-%S", style="original").strip("/")
-REC_PATH = env_bool("RECORD_PATH", "record/{cam_name}/%Y/%m/%d/", style="original")
+REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original").strip("/")
+REC_PATH = env_bool("RECORD_PATH", r"%path/{cam_name}/%Y/%m/%d", style="original").strip("/")
 RECORD_PATH = f"{Path('/') / Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4")
 
 class MtxInterface:
@@ -77,7 +78,8 @@ class MtxServer:
         self._setup_path_defaults()
 
     def _setup_path_defaults(self):
-        record_path = ensure_record_path().format(cam_name="%path", CAM_NAME="%path")
+        logger.info(f"[MTX] setting up default RECORD_PATH: {RECORD_PATH}")
+        record_path = ensure_record_path()
 
         with MtxInterface() as mtx:
             mtx.set("paths", {})
@@ -133,12 +135,11 @@ class MtxServer:
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.source", value)
 
-    def record(self, uri: str):
-        record_path = ensure_record_path().replace("%path", uri).format(
-            cam_name=uri.lower(), CAM_NAME=uri.upper()
-        )
+    def record(self, uri: str, cam: WyzeCamera):
+        logger.info(f"[MTX] Starting record for {uri}")
+        record_path = ensure_record_path().format(cam_name=uri.lower(), CAM_NAME=uri.upper())
 
-        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips to {record_path}.mp4")
+        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path}")
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.record", True)
             mtx.set(f"paths.{uri}.recordPath", record_path)
