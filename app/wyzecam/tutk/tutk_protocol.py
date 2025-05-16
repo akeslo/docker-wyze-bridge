@@ -480,7 +480,7 @@ class K10056SetResolvingBit(TutkWyzeProtocolMessage):
     This is sent automatically after the authentication handshake completes successfully.
     """
 
-    def __init__(self, frame_size=tutk.FRAME_SIZE_1080P, bitrate=tutk.BITRATE_HD):
+    def __init__(self, frame_size=tutk.FRAME_SIZE_1080P, bitrate=tutk.BITRATE_HD, fps: int = 0):
         """
         Construct a K10056SetResolvingBit message, with a given frame size and bitrate.
 
@@ -503,9 +503,10 @@ class K10056SetResolvingBit(TutkWyzeProtocolMessage):
         super().__init__(10056)
         self.frame_size = frame_size + 1
         self.bitrate = bitrate
+        self.fps = fps
 
     def encode(self) -> bytes:
-        return encode(self.code, pack("<BH", self.frame_size, self.bitrate))
+        return encode(self.code, pack("<BH", self.frame_size, self.bitrate, self.fps))
 
     def parse_response(self, resp_data):
         return resp_data == b"\x01"
@@ -686,7 +687,7 @@ class K10092SetCameraTime(TutkWyzeProtocolMessage):
         super().__init__(10092)
 
     def encode(self) -> bytes:
-        return encode(self.code, pack("<I", int(time.time())))
+        return encode(self.code, pack("<I", int(time.time() + 1)))
 
 
 class K10290GetMotionTagging(TutkWyzeProtocolMessage):
@@ -1045,6 +1046,8 @@ class K11006GetCurCruisePoint(TutkWyzeProtocolMessage):
     - dict: current PTZ:
         - vertical (int): vertical angle.
         - horizontal (int): horizontal angle.
+        - time (int): wait time in seconds.
+        - blank (int): isBlankPst?.
     """
 
     def __init__(self):
@@ -1055,7 +1058,12 @@ class K11006GetCurCruisePoint(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data: bytes):
         data = unpack("<IBH", resp_data)
-        return {"vertical": data[1], "horizontal": data[2]}
+        return {
+            "vertical": data[1],
+            "horizontal": data[2],
+            "time": data[3],
+            "blank": data[4],
+        }
 
 
 class K11010GetCruisePoints(TutkWyzeProtocolMessage):
@@ -1067,6 +1075,7 @@ class K11010GetCruisePoints(TutkWyzeProtocolMessage):
         - vertical (int): vertical angle.
         - horizontal (int): horizontal angle.
         - time (int): wait time in seconds.
+        - blank (int): isBlankPst?.
     """
 
     def __init__(self):
@@ -1078,6 +1087,7 @@ class K11010GetCruisePoints(TutkWyzeProtocolMessage):
                 "vertical": data[0],
                 "horizontal": data[1],
                 "time": data[2],
+                "blank": [3],
             }
             for data in iter_unpack("<BHB", resp_data[1:])
         ]
@@ -1103,7 +1113,8 @@ class K11012SetCruisePoints(TutkWyzeProtocolMessage):
             vertical = int(point.get("vertical", 0))
             horizontal = int(point.get("horizontal", 0))
             time = int(point.get("time", wait_time))
-            self.points.extend(pack("<BHB", vertical, horizontal, time))
+            blank = int(point.get("blank", 0)),
+            self.points.extend(pack("<BHB", vertical, horizontal, time, blank))
 
     def encode(self) -> bytes:
         return encode(self.code, self.points)

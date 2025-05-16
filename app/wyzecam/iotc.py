@@ -17,6 +17,7 @@ from wyzecam.tutk import tutk, tutk_ioctl_mux, tutk_protocol
 from wyzecam.tutk.tutk_ioctl_mux import TutkIOCtrlMux
 from wyzecam.tutk.tutk_protocol import (
     K10000ConnectRequest,
+    K10020CheckCameraParams,
     K10052DBSetResolvingBit,
     K10056SetResolvingBit,
     respond_to_ioctrl_10001,
