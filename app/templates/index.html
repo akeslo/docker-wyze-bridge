@@ -58,25 +58,25 @@
                 </div>
                 <div class="dropdown-menu" id="restart-menu" role="menu">
                     <div class="dropdown-content">
-                        <a data-restart="cameras" class="dropdown-item">
+                        <a data-restart="cameras" class="dropdown-item" role="menuitem">
                             <span class="icon is-small">
                                 <i class="fas fa-video"></i>
                             </span>
                             <span>connection to cameras</span>
                         </a>
-                        <a data-restart="rtsp_server" class="dropdown-item">
+                        <a data-restart="rtsp_server" class="dropdown-item" role="menuitem">
                             <span class="icon is-small">
                                 <i class="fas fa-solid fa-network-wired"></i>
                             </span>
                             <span>mtx-server</span>
                         </a>
-                        <a data-restart="cam_data" class="dropdown-item">
+                        <a data-restart="cam_data" class="dropdown-item" role="menuitem">
                             <span class="icon is-small">
                                 <i class="fas fa-rotate"></i>
                             </span>
                             <span>reload camera data</span>
                         </a>
-                        <a data-restart="all" class="dropdown-item">
+                        <a data-restart="all" class="dropdown-item" role="menuitem">
                             <span class="icon is-small">
                                 <i class="fas fa-solid fa-cloud-arrow-down"></i>
                             </span>
@@ -125,7 +125,7 @@
                             <i class="fas fa-sd-card" aria-hidden="true"></i>
                         </span>
                         <div class="dropdown-menu" role="menu">
-                            <div class="dropdown-content">
+                            <div class="dropdown-content" role="menuitem">
                                 <p class="menu-label dropdown-item">{{
                                     (camera.camera_info.sdParm.capacity|int/1024)|round(2) }} GB SD Card</p>
                                 <progress class="progress is-medium dropdown-item"
@@ -173,7 +173,7 @@
                     <i class="fas"></i>
                     {% elif camera.img_url or camera.connected or (camera.on_demand and camera.enabled) %}
                     <img class="refresh_img loading-preview {{'connected' if camera.connected}}"
-                        src="{{ camera.img_url or 'static/loading.svg' }}" data-cam="{{cam_uri}}" width="100%" />
+                        src="{{ camera.img_url or 'static/loading.svg' }}" data-cam="{{cam_uri}}" width="100%" alt="{{camera.name}} snapshot"/>
                     {% else %}
                     <section class="section has-background-black has-text-white no-preview"
                         data-on-demand="{{camera.on_demand}}">
@@ -234,36 +234,39 @@
                         <div class="dropdown-content cam-control" data-cam="{{cam_uri}}">
                             <p class="menu-label dropdown-item"><i class="fas fa-power-off"></i> Power</p>
                             <div class="buttons are-small is-centered">
-                                <button class="button" data-cmd="power" data-payload="on">On</button>
-                                <button class="button" data-cmd="power" data-payload="off">Off</button>
-                                <button class="button" data-cmd="power" data-payload="restart">Restart</button>
+                                <button class="button" data-cmd="power" data-payload="on" role="menuitem" title="Power On">On</button>
+                                <button class="button" data-cmd="power" data-payload="off" role="menuitem" title="Power Off">Off</button>
+                                <button class="button" data-cmd="power" data-payload="restart" role="menuitem" title="Restart">Restart</button>
                             </div>
                             <p class="menu-label dropdown-item"><i class="fas fa-video"></i> Stream</p>
                             <div class="buttons are-small is-centered">
-                                <button class="button" data-cmd="state" data-payload="enable">
+                                <button class="button" data-cmd="state" data-payload="enable" role="menuitem">
                                     <span class="icon is-small">
                                         <i class="fas fa-circle-check" aria-hidden="true"></i></span>
                                     <span>Enable</span></button>
-                                <button class="button" data-cmd="state" data-payload="disable"> <span
+                                <button class="button" data-cmd="state" data-payload="disable" role="menuitem">
+                                    <span
                                         class="icon is-small">
                                         <i class="fas fa-circle-xmark" aria-hidden="true"></i></span>
                                     <span>Disable</span></button></button>
                             </div>
                             <div class="buttons are-small is-centered">
-                                <button class="button" data-cmd="state" data-payload="start"> <span
+                                <button class="button" data-cmd="state" data-payload="start" role="menuitem" title="Start Stream">
+                                    <span
                                         class="icon is-small">
                                         <i class="fas fa-circle-play" aria-hidden="true"></i></span>
                                     <span>Start</span></button>
-                                <button class="button" data-cmd="state" data-payload="stop"> <span
+                                <button class="button" data-cmd="state" data-payload="stop" role="menuitem" title="Stop Stream">
+                                    <span
                                         class="icon is-small">
                                         <i class="fas fa-circle-pause" aria-hidden="true"></i></span>
                                     <span>Stop</span></button>
                             </div>
                             <p class="menu-label dropdown-item"><i class="fas fa-moon"></i> Night Vision</p>
                             <div class="buttons are-small is-centered">
-                                <button class="button" data-cmd="night_vision" data-payload="on">On</button>
-                                <button class="button" data-cmd="night_vision" data-payload="off">Off</button>
-                                <button class="button" data-cmd="night_vision" data-payload="auto">Auto</button>
+                                <button class="button" data-cmd="night_vision" data-payload="on" role="menuitem" title="Night Vision On">On</button>
+                                <button class="button" data-cmd="night_vision" data-payload="off" role="menuitem" title="Night Vision Off">Off</button>
+                                <button class="button" data-cmd="night_vision" data-payload="auto" role="menuitem" title="Night Vision Auto">Auto</button>
                             </div>
                         </div>
                     </div>
@@ -279,43 +282,43 @@
                         <div class="dropdown-content">
                             <p class="menu-label dropdown-item">Video Streams</p>
                             {% if camera.webrtc_url %}
-                            <a href="{{camera.webrtc_url}}" class="dropdown-item icon-text stream-link" target="_blank">
+                            <a href="{{camera.webrtc_url}}" class="dropdown-item icon-text stream-link" target="_blank" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-code" aria-hidden="true"></i>
                                 </span><span>WebRTC</span>{% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
                                 </span> {% endif %}</a>
                             {% endif %}
-                            <a href="{{camera.hls_url}}" class="dropdown-item icon-text stream-link" target="_blank">
+                            <a href="{{camera.hls_url}}" class="dropdown-item icon-text stream-link" target="_blank" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-code" aria-hidden="true"></i>
                                 </span><span>HLS</span>{% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
                                 </span> {% endif %}</a>
-                            <a href="{{camera.rtmp_url}}" class="dropdown-item icon-text stream-link">
+                            <a href="{{camera.rtmp_url}}" class="dropdown-item icon-text stream-link" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-video" aria-hidden="true"></i>
                                 </span><span>RTMP</span> {% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
                                 </span> {% endif %}</a>
-                            <a href="{{camera.rtsp_url}}" class="dropdown-item icon-text stream-link">
+                            <a href="{{camera.rtsp_url}}" class="dropdown-item icon-text stream-link" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-video" aria-hidden="true"></i>
                                 </span><span>RTSP</span>{% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
                                 </span>{% endif %}</a>
                             {% if camera.rtsp_fw_enabled %}
-                            <a href="{{camera.rtsp_url}}fw" class="dropdown-item icon-text stream-link" target="_blank">
+                            <a href="{{camera.rtsp_url}}fw" class="dropdown-item icon-text stream-link" target="_blank" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-video" aria-hidden="true"></i></span>
                                 <span>FW_RTSP</span></a>
                             {% endif %}
                             {% if camera.boa_url %}
-                            <a href="{{camera.boa_url}}" class="dropdown-item icon-text" target="_blank">SD
-                                Card</a>
+                            <a href="{{camera.boa_url}}" class="dropdown-item icon-text" target="_blank" role="menuitem">
+                                <span>SD Card</span></a>
                             {% endif %}
                             <p class="menu-label dropdown-item">Snapshots</p>
-                            <a href="{{camera.snapshot_url}}" class="dropdown-item icon-text" target="_blank">
+                            <a href="{{camera.snapshot_url}}" class="dropdown-item icon-text" target="_blank" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-image" aria-hidden="true"></i>
                                 </span><span>RTSP Snapshot</span>{% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
                                 </span>{% endif %}</a>
-                            <a href="{{camera.thumbnail_url}}" class="dropdown-item icon-text" target="_blank">
+                            <a href="{{camera.thumbnail_url}}" class="dropdown-item icon-text" target="_blank" role="menuitem">
                                 <span class="icon is-small"><i class="fas fa-file-image" aria-hidden="true"></i>
                                 </span><span>API Thumbnail</span>{% if api %}<span class="icon">
                                     <i class="fas fa-lock"></i>
@@ -323,7 +326,6 @@
                         </div>
                     </div>
                 </div>
-
             </footer>
         </div>
     </div>
@@ -366,7 +368,7 @@
     </div>
 </div>
 <div class="fullscreen">
-    <button class="button is-small">
+    <button class="button is-small" title="Fullscreen">
         <span class="icon is-small">
             <i class="fas fa-maximize"></i>
         </span>
