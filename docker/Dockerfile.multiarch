@@ -12,8 +12,8 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y \
         curl \
-        tar \
         gcc \
+        tar \
     ; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
@@ -43,7 +43,10 @@ RUN set -eux; \
     rm mediamtx.tar.gz; \
     cp app/lib/lib.${TARGETARCH} usr/local/lib/libIOTCAPIs_ALL.so; \
     rm -rf app/*.txt app/lib/; \
-    if [ -z "${BUILD_DATE}" ]; then echo BUILD_DATE=$(date) > .build_date; else echo BUILD_DATE=${BUILD_DATE} > .build_date; fi
+    if [ -z "${BUILD_DATE}" ]; \
+    then echo BUILD_DATE=$(date) > .build_date; \
+    else echo BUILD_DATE=${BUILD_DATE} > .build_date; \
+    fi
 
 FROM base_$TARGETARCH
 ARG BUILD

@@ -1,13 +1,12 @@
 from os import getenv
 from pathlib import Path
-from signal import SIGKILL
-from subprocess import DEVNULL, Popen
+from signal import SIGTERM
+from subprocess import Popen
 from typing import Optional
 
 import yaml
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
-from wyzecam.api_models import WyzeCamera
 
 MTX_CONFIG = "/app/mediamtx.yml"
 
@@ -15,7 +14,7 @@ RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
 REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original").strip("/")
 REC_PATH = env_bool("RECORD_PATH", r"%path/{cam_name}/%Y/%m/%d", style="original").strip("/")
-RECORD_PATH = f"{Path('/') / Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4")
+RECORD_PATH = f"{Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
 
 class MtxInterface:
     __slots__ = "data", "_modified"
@@ -100,7 +99,6 @@ class MtxServer:
             }
         publisher: dict = {
                 "user": "any",
-                "ips": ["127.0.0.1", "::1"],
                 "permissions": [{"action": "read"}, {"action": "playback"}, {"action": "publish"}]
             }
 
@@ -125,7 +123,7 @@ class MtxServer:
     def add_path(self, uri: str, on_demand: bool = True):
         with MtxInterface() as mtx:
             if on_demand:
-                cmd = f"bash -c 'echo $MTX_PATH,{{}}! > /tmp/mtx_event'"
+                cmd = "bash -c 'echo $MTX_PATH,{}! > /tmp/mtx_event'"
                 mtx.set(f"paths.{uri}.runOnDemand", cmd.format("start"))
                 mtx.set(f"paths.{uri}.runOnUnDemand", cmd.format("stop"))
             else:
@@ -135,7 +133,7 @@ class MtxServer:
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.source", value)
 
-    def record(self, uri: str, cam: WyzeCamera):
+    def record(self, uri: str):
         logger.info(f"[MTX] Starting record for {uri}")
         record_path = ensure_record_path().format(cam_name=uri.lower(), CAM_NAME=uri.upper())
 
@@ -158,7 +156,7 @@ class MtxServer:
             return
         if self.sub_process.poll() is None:
             logger.info("[MTX] Stopping MediaMTX...")
-            self.sub_process.send_signal(SIGKILL)
+            self.sub_process.send_signal(SIGTERM)
             self.sub_process.communicate()
         self.sub_process = None
 
@@ -206,6 +204,12 @@ class MtxServer:
 
 def ensure_record_path() -> str:
     record_path = RECORD_PATH
+
+    if "%path" in record_path:
+        logger.info("[MTX] The computed record_path includes %path")
+    else:
+        logger.warning("[MTX] The computed record_path did not include %path, prepending it to the pattern")
+        record_path = "%path/" + record_path
 
     if "%s" in record_path or all(x in record_path for x in ["%Y", "%m", "%d", "%H", "%M", "%S"]):
         logger.info(f"[MTX] The computed record_path: '{record_path}' IS VALID")

@@ -30,7 +30,8 @@ class RtspEvent:
             return
         with contextlib.suppress(FileExistsError):
             os.mkfifo(self.FIFO)
-        self.pipe = os.open(self.FIFO, os.O_RDWR | os.O_NONBLOCK)
+        self.pipe = os.open(self.FIFO, os.O_RDWR)
+        os.set_blocking(self.pipe, False)
 
     def read(self, timeout: int = 1):
         self.open_pipe()
@@ -45,7 +46,7 @@ class RtspEvent:
         except Exception as ex:
             logger.error(f"Error reading from pipe: {ex}")
 
-    def process_data(self, data):
+    def process_data(self, data: str):
         messages = data.split("!")
         if self.buf:
             messages[0] = self.buf + messages[0]
@@ -58,6 +59,7 @@ class RtspEvent:
     def log_event(self, event_data: str):
         try:
             uri, event = event_data.split(",")
+            logger.info(f"Received event: {event} for {uri}")
         except ValueError:
             logger.error(f"Error parsing {event_data=}")
             return
