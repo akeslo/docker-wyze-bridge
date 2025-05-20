@@ -2,7 +2,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus
 
 from flask import (
     Flask,
@@ -17,9 +17,7 @@ from werkzeug.exceptions import NotFound
 from wyze_bridge import WyzeBridge
 from wyzebridge import config, web_ui
 from wyzebridge.auth import WbAuth
-from wyzebridge.bridge_utils import env_bool
 from wyzebridge.web_ui import url_for
-
 
 def create_app():
     app = Flask(__name__)

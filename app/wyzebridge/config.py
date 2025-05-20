@@ -22,7 +22,7 @@ setup_hass(HASS_TOKEN)
 MQTT_DISCOVERY = env_bool("MQTT_DTOPIC")
 MQTT_TOPIC = env_bool("MQTT_TOPIC", "wyzebridge").strip("/")
 ON_DEMAND: bool = bool(env_bool("on_demand") if getenv("ON_DEMAND") else True)
-CONNECT_TIMEOUT: int = env_bool("CONNECT_TIMEOUT", 20, style="int")
+CONNECT_TIMEOUT: int = env_bool("CONNECT_TIMEOUT", "20", style="int")
 
 # TODO: change TOKEN_PATH  to /config for all:
 TOKEN_PATH: str = "/config/" if HASS_TOKEN else "/tokens/"

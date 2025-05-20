@@ -74,7 +74,7 @@ class WyzeBridge(Thread):
 
             self.mtx.add_path(stream.uri, not options.reconnect)
             if env_cam("record", cam.name_uri):
-                self.mtx.record(stream.uri, cam)
+                self.mtx.record(stream.uri)
             self.streams.add(stream)
 
     def rtsp_fw_proxy(self, cam: WyzeCamera, stream: WyzeStream) -> bool:
