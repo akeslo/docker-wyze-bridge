@@ -6,24 +6,31 @@ FROM python:3.13-slim-bookworm AS base
 
 FROM base AS builder
 ARG BUILD_DATE
-RUN set -eux; \
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    set -eux; \
     apt-get update; \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         curl \
         gcc \
-        tar \
-    ; \
+        tar; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
+
 COPY /app/ /build/app/
-RUN set -eux; pip3 install --disable-pip-version-check --prefix=/build/usr/local -r /build/app/requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eux; pip3 install --disable-pip-version-check --prefix=/build/usr/local -r /build/app/requirements.txt
+
 RUN set -eux; \
     echo "BUILDING IMAGE FOR $(uname -m)";\
-        if [ "$(uname -m)" = "armv7l" ]; \
-        then TARGETARCH=arm; FFMPEG_ARCH=arm32v7; MTX_ARCH=armv7; \
-        elif [ "$(uname -m)" = "aarch64" ]; \
-        then TARGETARCH=arm64; FFMPEG_ARCH=aarch64; MTX_ARCH=arm64; \
-        else TARGETARCH=amd64; FFMPEG_ARCH=x86_64; MTX_ARCH=amd64; \
+    if [ "$(uname -m)" = "armv7l" ]; then \
+        TARGETARCH=arm; FFMPEG_ARCH=arm32v7; MTX_ARCH=armv7; \
+    elif [ "$(uname -m)" = "aarch64" ]; then \
+        TARGETARCH=arm64; FFMPEG_ARCH=aarch64; MTX_ARCH=arm64; \
+    else \
+        TARGETARCH=amd64; FFMPEG_ARCH=x86_64; MTX_ARCH=amd64; \
     fi; \
     cd /build;\
     . app/.env; \
@@ -39,14 +46,31 @@ RUN set -eux; \
     cp app/lib/lib.${TARGETARCH} usr/local/lib/libIOTCAPIs_ALL.so; \
     rm -rf app/*.txt app/lib/; \
     if [ -z "${BUILD_DATE}" ]; \
-    then echo BUILD_DATE=$(date) > .build_date; \
-    else echo BUILD_DATE=${BUILD_DATE} > .build_date; \
-    fi
+        then echo BUILD_DATE=$(date) > .build_date; \
+        else echo BUILD_DATE=${BUILD_DATE} > .build_date; \
+    fi;
 
 FROM base
 ARG BUILD
 ARG GITHUB_SHA
+ARG BUILD_DATE
+ARG BUILD_VERSION
 COPY --from=builder /build /
 ENV PYTHONUNBUFFERED=1 FLASK_APP=frontend BUILD=$BUILD GITHUB_SHA=$GITHUB_SHA
 WORKDIR /app
 CMD ["flask", "run", "--host=0.0.0.0"]
+
+LABEL \
+    io.hass.name="Docker Wyze Bridge for Home Assistant" \
+    io.hass.description="Bridges Wyze Cameras into Home Assistant using MediaMTX in Docker container" \
+    io.hass.type="addon" \
+    io.hass.version=${BUILD_VERSION} \
+    maintainer="Marc Brooks <idisposable@gmail.com>" \
+    org.label-schema.name="Docker Wyze Bridge HA" \
+    org.label-schema.description="Docker Wyze Bridge for Home Assistant" \
+    org.label-schema.build-date=${BUILD_DATE} \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.usage="https://github.com/IDisposable/docker-wyze-bridge/blob/main/README.md" \
+    org.label-schema.vcs-ref=${GITHUB_SHA} \
+    org.label-schema.vcs-url="https://github.com/IDisposable/docker-wyze-bridge/" \
+    org.label-schema.vendor="HomeAssistant add-ons by Marc Brooks"
