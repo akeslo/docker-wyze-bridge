@@ -502,7 +502,7 @@ class St_IOTCCheckDeviceOutput(FormattedStructure):
 class St_IOTCConnectInput(FormattedStructure):
     _fields_ = [
         ("cb", c_uint32),
-        ("authentication_type", c_uint),
+        ("authentication_type", c_uint32),
         ("auth_key", c_char * 8),
         ("timeout", c_uint32),
     ]

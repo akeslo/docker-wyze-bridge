@@ -1,3 +1,23 @@
+# What's Changed
+
+## What's Changed in v3.10.8
+
+- Removed forced leading "/" from RECORD_PATH
+- Removed the IP restrictions from the MediaMTX "publisher" role
+- Sync up with Elliot Kroo's [wyzecam library](https://github.com/kroo/wyzecam)
+  - add HL_WCO2 camera support
+  - K10020CheckCameraParams support
+  - Fix `authentication_type`'s type
+  - Add fps to the `K10056SetResolvingBit` message
+  - Fix time setting to always advance one second (for lag) in `K10092SetCameraTime`
+  - Send/recv time and blank (PST flag?) to `K11006GetCurCruisePoint`/`K11010GetCruisePoints`/`K11012SetCruisePoints`
+- Changed the MediaMTX config builder to emit correct config for recording
+- Cleanup the warnings in the app code and added `mtx_event` pipe receipt logging
+- Updated Wyze iOS app version to 3.5.0.8 (for user agent)
+- Use `SIGTERM` for more graceful shutdown
+- More startup logging for the MTX configuration of `RECORD_PATH`
+- Sync up all the ports listed in MediaMTX with the ports exposed in the docker-compose files
+
 ## What's Changed in v3.10.7
 
 - Reverted defaulting of RECORD_PATH option specifying `{cam_name}` instead of `%path` (need to fix that another way)
@@ -27,14 +47,14 @@
 
 ## What's Changed in v3.10.2
 
-- Added code to protect against the aggressive syntax check in MediaMTX 1.12.0 which 
+- Added code to protect against the aggressive syntax check in MediaMTX 1.12.0 which
   complains about the `recordPath` missing required elements even when recording is
   not enabled (it really shouldn't validate that setting unless one or more paths
   request recording...and didn't through 1.11.3).
   For reference, the pattern is computed from our `RECORD_PATH` and `RECORD_FILE_NAME`
   settings and the combination of them must contain the `strftime` format specifiers
   of *either* a `"%s"` or **all** of of "%Y", "%m", "%d", "%H", "%M", "%S" (case-sensitive).
-  If the value is not compliant, to keep MediaMTX from erroring out, we append `"_%s"` whatever 
+  If the value is not compliant, to keep MediaMTX from erroring out, we append `"_%s"` whatever
   was specified and emit a warning.
 - Changed the default `RECORD_PATH` to ~`"record/%path/%Y/%m/%d/"`~ *v3.10.7* `"%path/{cam_name}/%Y/%m/%d"`
 - Changed the default `RECORD_FILE_NAME` to `"%Y-%m-%d-%H-%M-%S"`
@@ -75,8 +95,8 @@
 
 ## What's Changed in v3.0.3
 
-Rehoming this to ensure it lives on since PR merges have stalled in the original (and most excellent) @mrlt8 repo, I am surfacing a new 
-release with the PRs I know work. **Note** The badges on the GitHub repo may be broken and the donation links _still_ go to @mrlt8 (as they should!)
+Rehoming this to ensure it lives on since PR merges have stalled in the original (and most excellent) @mrlt8 repo, I am surfacing a new
+release with the PRs I know work. **Note** The badges on the GitHub repo may be broken and the donation links *still* go to @mrlt8 (as they should!)
 
 - Chore: Bump Flask to 3.1.*
 - Chore: Bump Pydantic to 2.11.*

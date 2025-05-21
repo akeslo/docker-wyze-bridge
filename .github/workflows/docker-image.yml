@@ -31,18 +31,23 @@ jobs:
 
     strategy:
       matrix:
-        dockerfile: ['multiarch', 'hwaccel', 'qsv']
+        include:
+          - dockerfile: multiarch
+          - dockerfile: hwaccel
+            qsv: 0
+          - dockerfile: hwaccel
+            qsv: 1
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: matrix image type
+      - name: Show matrix image type
         id: image_type
         run: |
-          echo "suffix=${{ matrix.dockerfile == 'hwaccel' && '-hw' || matrix.dockerfile == 'qsv' && '-qsv' ||'' }}" >> $GITHUB_OUTPUT
+          echo "suffix=${{ matrix.dockerfile == 'multiarch' || matrix.qsv == 0 && '-hw' || matrix.qsv == 1 && '-qsv' || '' }}" >> $GITHUB_OUTPUT
           echo "platforms=${{ matrix.dockerfile == 'multiarch' && 'linux/amd64,linux/arm64,linux/arm/v7' || 'linux/amd64' }}" >> $GITHUB_OUTPUT
-          echo "arch=${{ matrix.dockerfile == 'multiarch' && 'amd64,armhf,aarch64' || 'amd64' }}" >> $GITHUB_OUTPUT
+          echo "arch=${{ matrix.dockerfile == 'multiarch' && 'amd64,aarch64,armhf' || 'amd64' }}" >> $GITHUB_OUTPUT
 
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
@@ -66,7 +71,7 @@ jobs:
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@master
+        uses: docker/setup-buildx-action@v3
         with:
           platforms: ${{ steps.image_type.outputs.platforms }}
 
@@ -109,6 +114,7 @@ jobs:
             BUILD=${{ steps.meta.outputs.VERSION }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GITHUB_SHA=${{ github.sha }}
+            QSV=${{ matrix.qsv }} 
           labels: |
             ${{ steps.meta.outputs.labels }}
             io.hass.name=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.title'] }}
