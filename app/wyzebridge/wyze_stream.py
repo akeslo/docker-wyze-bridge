@@ -98,12 +98,11 @@ class WyzeStream:
     def setup(self):
         if self.camera.is_gwell or self.camera.product_model == "LD_CFP":
             logger.info(
-                f"[{self.camera.product_model}] {self.camera.nickname} not supported"
+                f"[{self.camera.product_model}] {self.camera.nickname} may not be supported"
             )
-            self.state = StreamStatus.DISABLED
+
         if self.options.substream and not self.camera.can_substream:
             logger.error(f"{self.camera.nickname} may not support multiple streams!!")
-            # self.state = StreamStatus.DISABLED
 
         hq_size = 4 if self.camera.is_floodlight else 3 if self.camera.is_2k else 0
 
