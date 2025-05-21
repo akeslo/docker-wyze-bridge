@@ -1,5 +1,9 @@
 # What's Changed
 
+## What's Changed in v3.10.9
+
+- Revert tutk_protocol change in `K10056SetResolvingBit`
+
 ## What's Changed in v3.10.8
 
 - Removed forced leading "/" from RECORD_PATH

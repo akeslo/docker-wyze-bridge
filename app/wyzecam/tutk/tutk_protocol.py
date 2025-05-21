@@ -480,7 +480,7 @@ class K10056SetResolvingBit(TutkWyzeProtocolMessage):
     This is sent automatically after the authentication handshake completes successfully.
     """
 
-    def __init__(self, frame_size=tutk.FRAME_SIZE_1080P, bitrate=tutk.BITRATE_HD, fps: int = 0):
+    def __init__(self, frame_size=tutk.FRAME_SIZE_1080P, bitrate=tutk.BITRATE_HD):
         """
         Construct a K10056SetResolvingBit message, with a given frame size and bitrate.
 
@@ -503,10 +503,9 @@ class K10056SetResolvingBit(TutkWyzeProtocolMessage):
         super().__init__(10056)
         self.frame_size = frame_size + 1
         self.bitrate = bitrate
-        self.fps = fps
 
     def encode(self) -> bytes:
-        return encode(self.code, pack("<BH", self.frame_size, self.bitrate, self.fps))
+        return encode(self.code, pack("<BH", self.frame_size, self.bitrate))
 
     def parse_response(self, resp_data):
         return resp_data == b"\x01"
