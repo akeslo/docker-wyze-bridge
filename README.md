@@ -55,6 +55,10 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.10.9
+
+- Revert tutk_protocol change in `K10056SetResolvingBit`
+
 ## What's Changed in v3.10.8
 
 - Removed forced leading "/" from RECORD_PATH
