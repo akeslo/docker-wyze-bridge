@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from functools import wraps
@@ -118,6 +119,12 @@ def create_app():
 
         return resp
 
+    @app.route("/health")
+    def health():
+        """Add-on health check."""
+        health_data = wb.health()
+        return Response(json.dumps(health_data), mimetype="application/json")
+    
     @app.route("/api/sse_status")
     @auth_required
     def sse_status():

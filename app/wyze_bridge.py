@@ -13,7 +13,6 @@ from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.wyze_stream import WyzeStream, WyzeStreamOptions
 from wyzecam.api_models import WyzeCamera
 
-
 class WyzeBridge(Thread):
     __slots__ = "api", "streams", "mtx"
 
@@ -28,6 +27,12 @@ class WyzeBridge(Thread):
         self.mtx.setup_webrtc(config.BRIDGE_IP)
         if config.LLHLS:
             self.mtx.setup_llhls(config.TOKEN_PATH, bool(config.HASS_TOKEN))
+
+    def health(self):
+        mtx_alive = self.mtx.sub_process_alive()
+        active_streams = len(self.streams.active_streams())
+        wyze_authed = self.api.auth is not None and self.api.auth.access_token is not None
+        return { "mtx_alive":mtx_alive , "wyze_authed": wyze_authed, "active_streams": active_streams }
 
     def run(self, fresh_data: bool = False) -> None:
         self._initialize(fresh_data)
