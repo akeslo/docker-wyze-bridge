@@ -87,9 +87,13 @@ jobs:
             suffix=${{ steps.image_type.outputs.suffix }},onlatest=true
           tags: |
             type=schedule,suffix=${{ steps.image_type.outputs.suffix }}
-            type=semver,pattern={{ version }},suffix=${{ steps.image_type.outputs.suffix }}
-            type=edge,branch=main,enable=${{ github.event_name == 'push' }},suffix=${{ steps.image_type.outputs.suffix }}
+            type=semver,pattern={{version}},suffix=${{ steps.image_type.outputs.suffix }}
+            type=semver,pattern={{major}}.{{minor}},suffix=${{ steps.image_type.outputs.suffix }}
+            type=semver,pattern={{major}},suffix=${{ steps.image_type.outputs.suffix }}
+            type=edge,branch=$repo.default_branch,enable=${{ github.event_name == 'push' }},suffix=${{ steps.image_type.outputs.suffix }}
             type=ref,event=branch,enable=${{ contains(github.ref,'dev') }},suffix=${{ steps.image_type.outputs.suffix }}
+            type=ref,event=pr,suffix=${{ steps.image_type.outputs.suffix }}
+            type=sha,format=long,suffix=${{ steps.image_type.outputs.suffix }}
 
       - name: Update Release Version
         id: version_bump
@@ -111,7 +115,7 @@ jobs:
           file: ./docker/Dockerfile.${{ matrix.dockerfile }}
           platforms: ${{ steps.image_type.outputs.platforms }}
           build-args: |
-            BUILD=${{ steps.meta.outputs.VERSION }}
+            BUILD=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             GITHUB_SHA=${{ github.sha }}
             QSV=${{ matrix.qsv }} 
