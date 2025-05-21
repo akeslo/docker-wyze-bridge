@@ -61,7 +61,7 @@ class TutkIOCtrlFuture:
             raise tutk.TutkError(self.errcode)
         if self.expected_response_code is None:
             logger.warning("no response code!")
-            return
+            return None
         assert self.queue is not None, "Future created without error nor queue!"
 
         msg = self.queue.get(block=block, timeout=timeout)
