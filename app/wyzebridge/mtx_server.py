@@ -142,14 +142,14 @@ class MtxServer:
             mtx.set(f"paths.{uri}.record", True)
             mtx.set(f"paths.{uri}.recordPath", record_path)
 
-    def start(self):
-        if self.sub_process:
-            return
-        logger.info(f"[MTX] starting MediaMTX {getenv('MTX_TAG')}")
-        self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"],
-                                 stdout=None,  # None means inherit from parent process
-                                 stderr=None   # None means inherit from parent process
-        )
+    def start(self) -> bool:
+        if not self.sub_process_alive():
+            logger.info(f"[MTX] starting MediaMTX {getenv('MTX_TAG')}")
+            self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"],
+                                    stdout=None,  # None means inherit from parent process
+                                    stderr=None   # None means inherit from parent process
+            )
+        return self.sub_process_alive()
 
     def stop(self):
         if not self.sub_process:
@@ -160,14 +160,19 @@ class MtxServer:
             self.sub_process.communicate()
         self.sub_process = None
 
-    def restart(self):
+    def restart(self) -> bool:
         self.stop()
-        self.start()
+        return self.start()
 
-    def health_check(self):
-        if self.sub_process and self.sub_process.poll() is not None:
+    def health_check(self) -> bool:
+        if not self.sub_process_alive() and self.sub_process is not None:
             logger.error(f"[MediaMTX] Process exited with {self.sub_process.poll()}")
             self.restart()
+
+        return self.sub_process_alive()
+
+    def sub_process_alive(self) -> bool:
+         return self.sub_process is not None and self.sub_process.poll() is None
 
     def setup_webrtc(self, bridge_ip: Optional[str]):
         if not bridge_ip:
