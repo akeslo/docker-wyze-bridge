@@ -13,7 +13,7 @@ MTX_CONFIG = "/app/mediamtx.yml"
 RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
 REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original").strip("/")
-REC_PATH = env_bool("RECORD_PATH", r"%path/{cam_name}/%Y/%m/%d", style="original").strip("/")
+REC_PATH = env_bool("RECORD_PATH", r"./recordings/{cam_name}/%Y/%m/%d", style="original").strip("/")
 RECORD_PATH = f"{Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
 
 class MtxInterface:
@@ -78,7 +78,7 @@ class MtxServer:
 
     def _setup_path_defaults(self):
         logger.info(f"[MTX] setting up default RECORD_PATH: {RECORD_PATH}")
-        record_path = ensure_record_path()
+        record_path = ensure_record_path().replace("{cam_name}", "%path").replace("{CAM_NAME}", "%path")
 
         with MtxInterface() as mtx:
             mtx.set("paths", {})
