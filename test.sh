@@ -16,4 +16,8 @@ docker run \
 -p 8889:8889 \
 -p 8890:8890/udp \
 -p 5000:5000 \
+-p 9996:9996 \
+-p 9997:9997 \
+-p 9998:9998 \
+-p 9999:9999 \
 --env-file ./test_env.list -i -t wyze-bridge-test

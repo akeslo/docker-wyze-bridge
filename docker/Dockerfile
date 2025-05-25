@@ -34,7 +34,7 @@ RUN set -eux; \
     fi; \
     cd /build;\
     . app/.env; \
-    mkdir -p tokens img; \
+    mkdir -p tokens img recordings; \
     curl -fsSL https://github.com/homebridge/ffmpeg-for-homebridge/releases/latest/download/ffmpeg-alpine-${FFMPEG_ARCH}.tar.gz -o ffmpeg.tar.gz; \
     tar tzf ffmpeg.tar.gz || (echo "Invalid ffmpeg tarball for ${FFMPEG_ARCH}" && exit 1); \
     tar xzf ffmpeg.tar.gz -C .; \
@@ -56,7 +56,7 @@ ARG GITHUB_SHA
 ARG BUILD_DATE
 ARG BUILD_VERSION
 COPY --from=builder /build /
-ENV PYTHONUNBUFFERED=1 FLASK_APP=frontend BUILD=$BUILD GITHUB_SHA=$GITHUB_SHA
+ENV PYTHONUNBUFFERED=1 FLASK_APP=frontend BUILD=$BUILD BUILD_VERSION=$BUILD_VERSION BUILD_DATE=$BUILD_DATE GITHUB_SHA=$GITHUB_SHA
 WORKDIR /app
 CMD ["flask", "run", "--host=0.0.0.0"]
 
