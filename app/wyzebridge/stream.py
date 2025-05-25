@@ -29,6 +29,8 @@ class Stream(Protocol):
     @property
     def motion(self) -> bool: ...
 
+    def init(self) -> bool: ...
+
     def start(self) -> bool: ...
 
     def stop(self) -> bool: ...
@@ -214,9 +216,9 @@ class StreamManager:
             if ffmpeg.wait(timeout=15) == 0:
                 return True
         except TimeoutExpired:
-            logger.error(f"[{cam_name}] Snapshot timed out")
+            logger.error(f"❗ [{cam_name}] Snapshot timed out")
         except Exception as ex:
-            logger.error(f"[{cam_name}] [{type(ex).__name__}] {ex}")
+            logger.error(f"❗ [{cam_name}] [{type(ex).__name__}] {ex}")
         stop_subprocess(ffmpeg)
 
         return False

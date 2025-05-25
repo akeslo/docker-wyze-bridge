@@ -82,7 +82,7 @@ class MtxServer:
 
         with MtxInterface() as mtx:
             mtx.set("paths", {})
-            for event in {"Read", "Unread", "Ready", "NotReady"}:
+            for event in {"Read", "Unread", "Ready", "NotReady", "Init"}:
                 bash_cmd = f"echo $MTX_PATH,{event}! > /tmp/mtx_event;"
                 mtx.set(f"pathDefaults.runOn{event}", f"bash -c '{bash_cmd}'")
             mtx.set("pathDefaults.runOnDemandStartTimeout", "30s")
@@ -99,13 +99,19 @@ class MtxServer:
             }
         publisher: dict = {
                 "user": "any",
-                "permissions": [{"action": "read"}, {"action": "playback"}, {"action": "publish"}]
+                "ips": ["127.0.0.1", "::1"],
+                "permissions": [{"action": "publish"}]
+            }
+        player: dict = {
+                "user": "any",
+                "permissions": [{"action": "read"}, {"action": "playback"}]
             }
 
         with MtxInterface() as mtx:
             mtx.set("authInternalUsers", [])
             mtx.add("authInternalUsers", administrator)
             mtx.add("authInternalUsers", publisher)
+            mtx.add("authInternalUsers", player)
             if (api or not stream):
                 client: dict = { }
                 if api:
@@ -123,9 +129,9 @@ class MtxServer:
     def add_path(self, uri: str, on_demand: bool = True):
         with MtxInterface() as mtx:
             if on_demand:
-                cmd = "bash -c 'echo $MTX_PATH,{}! > /tmp/mtx_event'"
-                mtx.set(f"paths.{uri}.runOnDemand", cmd.format("start"))
-                mtx.set(f"paths.{uri}.runOnUnDemand", cmd.format("stop"))
+                bash_cmd = "bash -c 'echo $MTX_PATH,{}! > /tmp/mtx_event'"
+                mtx.set(f"paths.{uri}.runOnDemand", bash_cmd.format("start"))
+                mtx.set(f"paths.{uri}.runOnUnDemand", bash_cmd.format("stop"))
             else:
                 mtx.set(f"paths.{uri}", {})
 

@@ -10,7 +10,6 @@ import select
 from wyzebridge.logging import logger
 from wyzebridge.mqtt import update_mqtt_state
 
-
 class RtspEvent:
     """
     Reads from the `/tmp/mtx_event` named pipe and logs events.
@@ -44,7 +43,7 @@ class RtspEvent:
             if ex.errno != errno.EBADF:
                 logger.error(ex)
         except Exception as ex:
-            logger.error(f"Error reading from pipe: {ex}")
+            logger.error(f"‼️ Error reading from pipe: {ex}")
 
     def process_data(self, data: str):
         messages = data.split("!")
@@ -59,14 +58,16 @@ class RtspEvent:
     def log_event(self, event_data: str):
         try:
             uri, event = event_data.split(",")
-            logger.info(f"Received event: {event} for {uri}")
+            logger.info(f"📥 Received event: {event} for {uri}")
         except ValueError:
-            logger.error(f"Error parsing {event_data=}")
+            logger.error(f"‼️ Error parsing {event_data=}")
             return
 
         event = event.lower().strip()
 
-        if event == "start":
+        if event == "init":
+            self.streams.get(uri).init()
+        elif event == "start":
             self.streams.get(uri).start()
         elif event == "stop":
             self.streams.get(uri).stop()
@@ -79,18 +80,12 @@ class RtspEvent:
 
 
 def read_event(camera: str, status: str):
-    msg = f"📕 Client stopped reading from {camera}"
-    if status == "read":
-        msg = f"📖 New client reading from {camera}"
+    msg = f"📖 New client reading from {camera}" if status == "read" else f"📕 Client stopped reading from {camera}"
     logger.info(msg)
 
 
 def ready_event(camera: str, status: str):
-    msg = f"❌ '/{camera}' stream is down"
-    state = "disconnected"
-    if status == "ready":
-        msg = f"✅ '/{camera} stream is UP! (3/3)"
-        state = "online"
-
+    msg = f"✅ '/{camera} stream is UP! (3/3)" if status == "ready" else f"❌ '/{camera}' stream is down"
+    state = "online" if status == "ready" else "disconnected"
     update_mqtt_state(camera, state)
     logger.info(msg)

@@ -28,7 +28,8 @@ ports:
   8554/tcp: 8554
   8888/tcp: 8888
   8889/tcp: 8889
-  8890/udp: 8890 
+  8890/udp: 8890
+  9996/tcp: 9996
   5000/tcp: 5000
 ports_description:
   1935/tcp: RTMP rtmp://localhost:1935/mystream?user=myuser&pass=mypass
@@ -37,14 +38,15 @@ ports_description:
   2936/tcp: RTMPS rtmps://localhost:2936/mystream?user=myuser&pass=mypass
   8000/udp: RTSP UDP/RTP rtsp://localhost:8000/mystream
   8001/udp: RTSP UDP/RTCP rtsp://localhost:8001/mystream
-  8002/udp: RTP Multicast
-  8003/udp: RTP Multicast control
+  8002/udp: RTSP RTP Multicast
+  8003/udp: RTSP RTCP Multicast control
   8189/udp: WebRTC ICE/UDP
   8322/tcp: TCP/TLS/RTSPS rtsps://localhost:8322/mystream
   8554/tcp: RTSP rtsp://localhost:8554/mystream
   8888/tcp: HLS http://localhost:8888/mystream
   8889/tcp: WebRTC http://localhost:8889/mystream and http://localhost:8889/mystream/whep
   8890/udp: SRT UDP srt://localhost:8890?streamid=read:mystream:myuser:mypass
+  9996/tcp: MediaMTX Playback server
   5000/tcp: WEB-UI http://localhost:5000/mystream
 environment:
   IMG_DIR: media/wyze/img/
