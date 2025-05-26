@@ -12,8 +12,8 @@ MTX_CONFIG = "/app/mediamtx.yml"
 
 RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
-REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original").strip("/")
-REC_PATH = env_bool("RECORD_PATH", r"./recordings/{cam_name}/%Y/%m/%d", style="original").strip("/")
+REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original")
+REC_PATH = env_bool("RECORD_PATH", r"./recordings/{cam_name}/%Y/%m/%d", style="original")
 RECORD_PATH = f"{Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
 
 class MtxInterface:
@@ -141,9 +141,9 @@ class MtxServer:
 
     def record(self, uri: str):
         logger.info(f"[MTX] Starting record for {uri}")
-        record_path = ensure_record_path().format(cam_name=uri.lower(), CAM_NAME=uri.upper())
-
-        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path}")
+        record_path = ensure_record_path().replace("{cam_name}", "%path").replace("{CAM_NAME}", "%path")
+        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path} where %path will be {uri}")
+        
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.record", True)
             mtx.set(f"paths.{uri}.recordPath", record_path)
@@ -215,12 +215,6 @@ class MtxServer:
 
 def ensure_record_path() -> str:
     record_path = RECORD_PATH
-
-    if "%path" in record_path:
-        logger.info("[MTX] The computed record_path includes %path")
-    else:
-        logger.warning("[MTX] The computed record_path did not include %path, prepending it to the pattern")
-        record_path = "%path/" + record_path
 
     if "%s" in record_path or all(x in record_path for x in ["%Y", "%m", "%d", "%H", "%M", "%S"]):
         logger.info(f"[MTX] The computed record_path: '{record_path}' IS VALID")
