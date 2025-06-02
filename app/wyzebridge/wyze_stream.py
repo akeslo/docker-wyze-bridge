@@ -94,11 +94,19 @@ class WyzeStream:
         self.setup()
 
     def setup(self):
+        if self.camera.ip is None or self.camera.ip == "":
+            logger.warning(
+                f"⚠︎ [{self.camera.product_model}] {self.camera.nickname} has no IP"
+            )
+            self.state = StreamStatus.DISABLED
+            return
+
         if self.camera.is_gwell or self.camera.product_model == "LD_CFP":
             logger.info(
                 f"⚠︎ [{self.camera.product_model}] {self.camera.nickname} may not be supported"
             )
             self.state = StreamStatus.DISABLED
+
         if self.options.substream and not self.camera.can_substream:
             logger.error(f"❗ {self.camera.nickname} may not support multiple streams!")
             self.state = StreamStatus.DISABLED
