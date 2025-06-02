@@ -31,14 +31,12 @@ QueueTuple = namedtuple("queue", ["cam_resp", "cam_cmd"])
 
 class StreamStatus(IntEnum):
     OFFLINE = -90
+    INITIALIZING = -1
     STOPPING = -1
     DISABLED = 0
-    INITIALIZING = 1
-    INITIALIZED = 2
-    STOPPED = 3
-    CONNECTING = 4
-    CONNECTED = 5
-
+    STOPPED = 1
+    CONNECTING = 2
+    CONNECTED = 3
 
 @dataclass(slots=True)
 class WyzeStreamOptions:
@@ -151,7 +149,7 @@ class WyzeStream:
         logger.info(
             f"🪄 MediaMTX Initializing WyzeCam {self.camera.model_name} - {self.camera.nickname} on {self.camera.ip}"
         )
-        self.state = StreamStatus.INITIALIZED
+        self.state = StreamStatus.STOPPED
         return True
 
     def start(self) -> bool:
