@@ -52,6 +52,7 @@ def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> No
             "device": {
                 "name": f"Wyze Cam {cam.nickname}",
                 "connections": [["mac", cam.mac]],
+                "ip": cam.ip,
                 "identifiers": cam.mac,
                 "manufacturer": "Wyze",
                 "model": cam.product_model,
