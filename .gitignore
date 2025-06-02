@@ -10,3 +10,5 @@
 !/app/.env
 
 test_env.list
+
+mediamtx.yml
