@@ -8,7 +8,9 @@
 *.env
 *.pyc
 !/app/.env
+build/
 
 test_env.list
+
 
 mediamtx.yml
