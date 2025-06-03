@@ -12,7 +12,6 @@ from wyzebridge.mqtt import bridge_status, cam_control, publish_topic, update_pr
 from wyzebridge.mtx_event import RtspEvent
 from wyzebridge.wyze_events import WyzeEvents
 
-
 class Stream(Protocol):
     camera: Any
     options: Any
@@ -46,7 +45,6 @@ class Stream(Protocol):
     def status(self) -> str: ...
 
     def send_cmd(self, cmd: str, payload: str | list | dict = "") -> dict: ...
-
 
 class StreamManager:
     __slots__ = "stop_flag", "streams", "rtsp_snapshots", "last_snap", "thread"
@@ -222,7 +220,6 @@ class StreamManager:
         stop_subprocess(ffmpeg)
 
         return False
-
 
 def stop_subprocess(ffmpeg: Optional[Popen]):
     if ffmpeg and ffmpeg.poll() is None:

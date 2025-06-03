@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from collections import defaultdict
-from ctypes import CDLL, c_int
+from ctypes import CDLL, c_int, c_uint
 from queue import Empty, Queue
 from typing import Any, DefaultDict, Optional, Union
 
@@ -162,7 +162,7 @@ class TutkIOCtrlMux:
     def send_ioctl(
         self,
         msg: TutkWyzeProtocolMessage,
-        ctrl_type: int = tutk.IOTYPE_USER_DEFINED_START,
+        ctrl_type: c_uint = c_uint(tutk.IOTYPE_USER_DEFINED_START),
     ) -> TutkIOCtrlFuture:
         """
         Send a [TutkWyzeProtocolMessage][wyzecam.tutk.tutk_protocol.TutkWyzeProtocolMessage]
@@ -191,7 +191,7 @@ class TutkIOCtrlMux:
             self.tutk_platform_lib, self.av_chan_id, ctrl_type, encoded_msg
         )
         if errcode:
-            return TutkIOCtrlFuture(msg, errcode=errcode)
+            return TutkIOCtrlFuture(msg, errcode=c_int(errcode))
         if not msg.expected_response_code:
             logger.warning("no expected response code found")
             return TutkIOCtrlFuture(msg)
@@ -255,7 +255,6 @@ class TutkIOCtrlMux:
             return results[0]
         else:
             return results
-
 
 class TutkIOCtrlMuxListener(threading.Thread):
     __slots__ = "tutk_platform_lib", "av_chan_id", "queues", "exception"

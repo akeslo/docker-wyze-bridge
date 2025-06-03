@@ -1,21 +1,17 @@
-from os import getenv
+from datetime import datetime
+import os
 from pathlib import Path
 from signal import SIGTERM
 from subprocess import Popen
 from typing import Optional
 
 import yaml
+from wyzebridge.config import RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
 
-MTX_CONFIG = "/app/mediamtx.yml"
-
-RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
-RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
-REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original")
-REC_PATH = env_bool("RECORD_PATH", r"{cam_name}/%Y/%m/%d", style="original")
-RECORD_PATH = f"/{REC_PATH}/{REC_FILE}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
-STUN_SERVER = env_bool("STUN_SERVER", "", style="original")
+MTX_CONFIG: str = "/app/mediamtx.yml"
+MTX_PATH: str = "%path"
 
 class MtxInterface:
     __slots__ = "data", "_modified"
@@ -29,14 +25,18 @@ class MtxInterface:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is not None or exc_value is not None or traceback is not None:
+            logger.debug(f"Exiting MtxInterface {exc_type=} {exc_value=} {traceback=}")
         if self._modified:
             self._save_config()
 
     def _load_config(self):
+        logger.info(f"Reading config from {MTX_CONFIG=}")
         with open(MTX_CONFIG, "r") as f:
             self.data = yaml.safe_load(f) or {}
 
     def _save_config(self):
+        logger.info(f"Writing config to {MTX_CONFIG=}")
         with open(MTX_CONFIG, "w") as f:
             yaml.safe_dump(self.data, f, sort_keys=False)
 
@@ -67,7 +67,6 @@ class MtxInterface:
             self.data[path] = value
         self._modified = True
 
-
 class MtxServer:
     """Setup and interact with the backend mediamtx."""
 
@@ -78,8 +77,8 @@ class MtxServer:
         self._setup_path_defaults()
 
     def _setup_path_defaults(self):
-        logger.info(f"[MTX] setting up default RECORD_PATH: {RECORD_PATH}")
-        record_path = ensure_record_path().replace("{cam_name}", "%path").replace("{CAM_NAME}", "%path")
+        logger.info(f"[MTX] setting up default {RECORD_PATTERN=}")
+        record_path = ensure_record_path().format(cam_name=MTX_PATH, CAM_NAME=MTX_PATH)
 
         with MtxInterface() as mtx:
             mtx.set("paths", {})
@@ -130,7 +129,6 @@ class MtxServer:
                 for client in parse_auth(stream):
                     mtx.add("authInternalUsers", client)
 
-
     def add_path(self, uri: str, on_demand: bool = True):
         with MtxInterface() as mtx:
             if on_demand:
@@ -146,17 +144,23 @@ class MtxServer:
 
     def record(self, uri: str):
         logger.info(f"[MTX] Starting record for {uri}")
-        record_path = ensure_record_path().replace("{cam_name}", "%path").replace("{CAM_NAME}", "%path")
-        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path} where %path will be {uri}")
         
+        base = ensure_record_path()
+        record_path = base.format(cam_name=MTX_PATH, CAM_NAME=MTX_PATH)
+        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path} where {MTX_PATH} will be {uri}")
+        
+        file = datetime.now().strftime(base)
+        recording = file.format(cam_name=uri, CAM_NAME=uri.upper())
+        os.makedirs(os.path.dirname(recording), exist_ok=True)
+
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.record", True)
             mtx.set(f"paths.{uri}.recordPath", record_path)
 
     def start(self) -> bool:
         if not self.sub_process_alive():
-            logger.info(f"[MTX] starting MediaMTX {getenv('MTX_TAG')}")
-            self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"], stderr=None) # None means inherit from parent process
+            logger.info(f"[MTX] starting MediaMTX {os.getenv('MTX_TAG')}")
+            self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"], stdout=None, stderr=None) # None means inherit from parent process
         return self.sub_process_alive()
 
     def stop(self):
@@ -214,9 +218,8 @@ class MtxServer:
             mtx.set("hlsServerKey", f"{cert_path}.key")
             mtx.set("hlsServerCert", f"{cert_path}.crt")
 
-
 def ensure_record_path() -> str:
-    record_path = RECORD_PATH
+    record_path = RECORD_PATTERN
 
     if "%s" in record_path or all(x in record_path for x in ["%Y", "%m", "%d", "%H", "%M", "%S"]):
         logger.info(f"[MTX] The computed record_path: '{record_path}' IS VALID")
@@ -226,7 +229,6 @@ def ensure_record_path() -> str:
 
     return record_path
 
-
 def mtx_version() -> str:
     try:
         with open("/MTX_TAG", "r") as tag:
@@ -234,17 +236,16 @@ def mtx_version() -> str:
     except FileNotFoundError:
         return ""
 
-
 def generate_certificates(cert_path):
     if not Path(f"{cert_path}.key").is_file():
         logger.info("[MTX] 🔐 Generating key for LL-HLS")
         Popen(
             ["openssl", "genrsa", "-out", f"{cert_path}.key", "2048"],
-            stderr=None   # None means inherit from parent process
+            stdout=None, stderr=None   # None means inherit from parent process
         ).wait()
     if not Path(f"{cert_path}.crt").is_file():
         logger.info("[MTX] 🔏 Generating certificate for LL-HLS")
-        dns = getenv("SUBJECT_ALT_NAME")
+        dns = os.getenv("SUBJECT_ALT_NAME")
         Popen(
             ["openssl", "req", "-new", "-x509", "-sha256"]
             + ["-key", f"{cert_path}.key"]
@@ -252,9 +253,8 @@ def generate_certificates(cert_path):
             + (["-addext", f"subjectAltName = DNS:{dns}"] if dns else [])
             + ["-out", f"{cert_path}.crt"]
             + ["-days", "3650"],
-            stderr=None   # None means inherit from parent process
+            stdout=None, stderr=None   # None means inherit from parent process
         ).wait()
-
 
 def parse_auth(auth: str) -> list[dict[str, str]]:
     entries = []

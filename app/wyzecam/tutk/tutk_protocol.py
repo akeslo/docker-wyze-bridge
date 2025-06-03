@@ -1334,12 +1334,12 @@ def respond_to_ioctrl_10001(
     camera_status, camera_enr_b = unpack("<B16s", data[:17])
 
     if camera_status in STATUS_MESSAGES:
-        logger.warning(f"Camera is {STATUS_MESSAGES[camera_status]}, can't auth.")
+        logger.warning(f"[TUTKP] Camera is {STATUS_MESSAGES[camera_status]}, can't auth.")
         return
 
     if camera_status not in {1, 3, 6}:
         logger.warning(
-            f"Unexpected mode for connect challenge response (10001): {camera_status}"
+            f"[TUTKP] Unexpected mode for connect challenge response (10001): {camera_status=}"
         )
         return
 
@@ -1352,7 +1352,7 @@ def respond_to_ioctrl_10001(
     else:
         response = K10002ConnectAuth(resp, mac, audio=audio)
 
-    logger.debug(f"Sending response: {response}")
+    logger.debug(f"[TUTKP] Sending response: {response}")
     return response
 
 

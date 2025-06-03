@@ -1,6 +1,7 @@
 import contextlib
 import json
 import multiprocessing as mp
+import traceback
 import zoneinfo
 from collections import namedtuple
 from ctypes import c_int
@@ -31,7 +32,7 @@ QueueTuple = namedtuple("queue", ["cam_resp", "cam_cmd"])
 
 class StreamStatus(IntEnum):
     OFFLINE = -90
-    INITIALIZING = -1
+    INITIALIZING = -2
     STOPPING = -1
     DISABLED = 0
     STOPPED = 1
@@ -98,7 +99,7 @@ class WyzeStream:
             logger.warning(
                 f"⚠︎ [{self.camera.product_model}] {self.camera.nickname} has no IP"
             )
-            self.state = StreamStatus.DISABLED
+            self.state = StreamStatus.OFFLINE
             return
 
         if self.camera.is_gwell or self.camera.product_model == "LD_CFP":
@@ -203,16 +204,18 @@ class WyzeStream:
         if self.state == StreamStatus.DISABLED:
             logger.info(f"🔓 Enabling {self.uri}")
             self.state = StreamStatus.STOPPED
+
         return self.state > StreamStatus.DISABLED
 
-    def disable(self) -> bool:
+    def disable(self) -> None:
         if self.state == StreamStatus.DISABLED:
-            return True
+            return
+
         logger.info(f"🔒 Disabling {self.uri}")
         if self.state != StreamStatus.STOPPED:
             self.stop()
+
         self.state = StreamStatus.DISABLED
-        return True
 
     def health_check(self, should_start: bool = True) -> int:
         self.motion
@@ -222,7 +225,7 @@ class WyzeStream:
                 self.disable()
                 return self.state
             logger.info(f"👻 {self.camera.nickname} is offline.")
-        if self.state in {-13, -19, -68}:
+        if self.state in {-13, -19, -68}:  # IOTC_ER_TIMEOUT, IOTC_ER_CAN_NOT_FIND_DEVICE, IOTC_ER_DEVICE_REJECT_BY_WRONG_AUTH_KEY
             self.refresh_camera()
         elif self.state < StreamStatus.DISABLED:
             state = self.state
@@ -454,25 +457,31 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
             ffmpeg_cmd = get_ffmpeg_cmd(uri, v_codec, audio, stream.camera.is_vertical)
             assert state.value >= StreamStatus.CONNECTING, "Stream Stopped"
             state.value = StreamStatus.CONNECTED
-            with Popen(ffmpeg_cmd, stdin=PIPE, stderr=None) as ffmpeg:
+            with Popen(ffmpeg_cmd, stdin=PIPE, stdout=None, stderr=None) as ffmpeg:
                 if ffmpeg.stdin is not None:
                     for frame in sess.recv_bridge_data():
                         ffmpeg.stdin.write(frame)
 
     except TutkError as ex:
+        trace = traceback.format_exc()
         logger.warning(f"𓁈‼️ {[ex.code]} {ex}")
+        logger.debug(trace)
         set_cam_offline(uri, ex, was_offline)
-        if ex.code in {-10, -13, -19, -68, -90}:
+        if ex.code in {-10, -13, -19, -68, -90}: # IOTC_ER_UNLICENSE, IOTC_ER_TIMEOUT, IOTC_ER_CAN_NOT_FIND_DEVICE, IOTC_ER_DEVICE_REJECT_BY_WRONG_AUTH_KEY, IOTC_ER_DEVICE_OFFLINE
             exit_code = ex.code
     except ValueError as ex:
+        trace = traceback.format_exc()
         logger.warning(f"𓁈⚠️ [TUTK] Error: [{type(ex).__name__}] {ex}")
+        logger.debug(trace)
         if ex.args[0] == "ENR_AUTH_FAILED":
             logger.warning("⏰ Expired ENR?")
-            exit_code = -19
+            exit_code = -19 # IOTC_ER_CAN_NOT_FIND_DEVICE
     except BrokenPipeError:
         logger.info("𓁈✋ [TUTK] FFMPEG stopped")
     except Exception as ex:
+        trace = traceback.format_exc()
         logger.warning(f"𓁈‼️ [TUTK] Exception: [{type(ex).__name__}] {ex}")
+        logger.debug(trace)
     else:
         logger.warning("𓁈🛑 [TUTK] Stream stopped")
     finally:
@@ -507,7 +516,8 @@ def setup_control(
 
 def get_cam_params(sess: WyzeIOTCSession, uri: str) -> tuple[str, dict]:
     """Check session and return fps and audio codec from camera."""
-    net_mode = check_net_mode(sess.session_check().mode, uri)
+    session_info = sess.session_check()
+    net_mode = check_net_mode(session_info.mode, uri)
     v_codec, fps = get_video_params(sess)
     firmware, wifi = get_camera_info(sess)
     stream = (
@@ -528,7 +538,7 @@ def get_cam_params(sess: WyzeIOTCSession, uri: str) -> tuple[str, dict]:
 
 def get_camera_info(sess: WyzeIOTCSession) -> tuple[str, str]:
     if not (camera_info := sess.camera.camera_info):
-        logger.warn("⚠️ cameraInfo is missing.")
+        logger.warning("⚠️ cameraInfo is missing.")
         return "NA", "NA"
     logger.debug(f"[cameraInfo] {camera_info}")
 
@@ -541,7 +551,6 @@ def get_camera_info(sess: WyzeIOTCSession) -> tuple[str, str]:
         wifi = camera_info["netInfo"].get("signal", wifi)
 
     return firmware, wifi
-
 
 def get_video_params(sess: WyzeIOTCSession) -> tuple[str, int]:
     cam_info = sess.camera.camera_info
@@ -564,7 +573,6 @@ def get_video_params(sess: WyzeIOTCSession) -> tuple[str, int]:
 
     return video_param.get("type", "h264"), fps
 
-
 def get_audio_params(sess: WyzeIOTCSession) -> dict[str, str | int]:
     if not sess.enable_audio:
         return {}
@@ -580,14 +588,15 @@ def get_audio_params(sess: WyzeIOTCSession) -> dict[str, str | int]:
 
     return {"codec": codec, "rate": rate, "codec_out": codec_out.lower()}
 
-
 def check_net_mode(session_mode: int, uri: str) -> str:
     """Check if the connection mode is allowed."""
     net_mode = env_cam("NET_MODE", uri, "any")
+    
     if "p2p" in net_mode and session_mode == 1:
-        raise Exception("☁️ Connected via RELAY MODE! Reconnecting")
+        raise RuntimeError("☁️ Connected via RELAY MODE! Reconnecting")
+    
     if "lan" in net_mode and session_mode != 2:
-        raise Exception("☁️ Connected via NON-LAN MODE! Reconnecting")
+        raise RuntimeError("☁️ Connected via NON-LAN MODE! Reconnecting")
 
     mode = f'{NET_MODE.get(session_mode, f"UNKNOWN ({session_mode})")} mode'
     if session_mode != 2:
@@ -595,10 +604,9 @@ def check_net_mode(session_mode: int, uri: str) -> str:
         logger.warning("Stream may consume additional bandwidth!")
     return mode
 
-
 def set_cam_offline(uri: str, error: TutkError, was_offline: bool) -> None:
     """Do something when camera goes offline."""
-    state = "offline" if error.code == -90 else error.name
+    state = "offline" if error.code == -90 else error.name # IOTC_ER_DEVICE_OFFLINE
     update_mqtt_state(uri.lower(), str(state))
 
     if str(error.code) not in env_bool("OFFLINE_ERRNO", "-90"):
@@ -607,7 +615,6 @@ def set_cam_offline(uri: str, error: TutkError, was_offline: bool) -> None:
         return
 
     send_webhook("offline", uri, f"{uri} is offline")
-
 
 def is_timedout(start_time: float, timeout: int = 20) -> bool:
     return time() - start_time > timeout if start_time else False

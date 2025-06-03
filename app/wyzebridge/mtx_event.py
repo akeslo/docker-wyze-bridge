@@ -28,7 +28,7 @@ class RtspEvent:
         if self.pipe:
             return
         with contextlib.suppress(FileExistsError):
-            os.mkfifo(self.FIFO)
+            os.mkfifo(self.FIFO) # type: ignore (this is defined in Linux)
         self.pipe = os.open(self.FIFO, os.O_RDWR)
         os.set_blocking(self.pipe, False)
 
