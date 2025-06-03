@@ -45,7 +45,7 @@ def pull_last_image(cam: dict, path: str, as_snap: bool = False):
             if file_name != cam["last_photo"][0]:
                 logger.info(f"Pulling {path} file from camera ({file_name=})")
                 resp = req.get(f"http://{ip}/SDPath/{path}/{date}/{file_name}")
-                _, modded = get_header_dates(resp.headers)
+                _, modded = get_header_dates(dict(resp.headers))
                 # with open(f"{img_dir}{path}_{file_name}", "wb") as img:
                 save_name = "_" + ("alarm.jpg" if path == "alarm" else file_name)
                 if as_snap:

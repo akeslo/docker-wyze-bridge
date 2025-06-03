@@ -71,7 +71,7 @@ def migrate_path(old: str, new: str):
     print(f"CLEANUP: MIGRATING {old=} to {new=}")
 
     if not os.path.exists(new):
-        os.makedirs(new)
+        os.makedirs(new, exist_ok = True)
     for item in os.listdir(old):
         new_file = os.path.join(new, os.path.relpath(os.path.join(old, item), old))
         if os.path.exists(new_file):

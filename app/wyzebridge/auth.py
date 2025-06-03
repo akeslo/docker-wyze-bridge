@@ -8,6 +8,7 @@ from wyzebridge.bridge_utils import env_bool
 from wyzebridge.config import TOKEN_PATH
 from wyzebridge.logging import logger
 
+STREAM_AUTH: str = env_bool("STREAM_AUTH", style="original")
 
 def get_secret(name: str, default: str = "") -> str:
     if not name:
@@ -17,7 +18,6 @@ def get_secret(name: str, default: str = "") -> str:
             return f.read().strip("'\" \n\t\r")
     except FileNotFoundError:
         return env_bool(name, default, style="original")
-
 
 def get_credential(file_name: str) -> str:
     if env_pass := get_secret(file_name):
@@ -30,7 +30,6 @@ def get_credential(file_name: str) -> str:
             return file.read().strip()
     return ""
 
-
 def clear_local_creds():
     for file in ["wb_password", "wb_api"]:
         file_path = f"{TOKEN_PATH}{file}"
@@ -38,11 +37,9 @@ def clear_local_creds():
             logger.info(f"[AUTH] Clearing local auth data [{file_path=}]")
             os.remove(file_path)
 
-
 def gen_api_key(email):
     hash_bytes = sha256(email.encode()).digest()
     return urlsafe_b64encode(hash_bytes).decode()[:40]
-
 
 class WbAuth:
     enabled: bool = bool(env_bool("WB_AUTH") if os.getenv("WB_AUTH") else True)
@@ -82,9 +79,5 @@ class WbAuth:
 
         cls.api = get_credential("wb_api") or gen_api_key(email)
 
-
 def redact_password(password: Optional[str]):
     return f"{password[0]}{'*' * (len(password) - 1)}" if password else "NOT SET"
-
-
-STREAM_AUTH: str = env_bool("STREAM_AUTH", style="original")
