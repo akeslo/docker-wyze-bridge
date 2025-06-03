@@ -1,5 +1,22 @@
 # What's Changed
 
+## What's Changed in v3.10.10
+
+- Add camera IP to MQTT message
+- Adjust the recording path construction more
+- Added STUN_SERVER support
+- Switched all home assistant configs to host_network
+- Don't default WB_AUTH nor MQTT on and don't force the MQTT_TOPIC
+- Restored the fps to the K10056SetResolvingBit message
+- Lots more logging to help track down the recording issue
+- Cleanup a bunch of Python warnings
+- Bump MediaMTX to 1.12.3
+- Bump Wyze app version to 3.5.5.8
+- Don't force MediaMTX logging level to info
+- Better tagging for Docker images
+- Unified more the normal/hardware/multiarch docker build files
+- Add devcontainer.json and tasks.json for VSCode
+
 ## What's Changed in v3.10.9
 
 - Revert tutk_protocol change in `K10056SetResolvingBit`

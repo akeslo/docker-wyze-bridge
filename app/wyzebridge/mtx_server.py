@@ -14,7 +14,7 @@ RECORD_LENGTH = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP = env_bool("RECORD_KEEP", "0s")
 REC_FILE = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original")
 REC_PATH = env_bool("RECORD_PATH", r"{cam_name}/%Y/%m/%d", style="original")
-RECORD_PATH = f"{Path(REC_PATH) / Path(REC_FILE)}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
+RECORD_PATH = f"/{REC_PATH}/{REC_FILE}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
 STUN_SERVER = env_bool("STUN_SERVER", "", style="original")
 
 class MtxInterface:
