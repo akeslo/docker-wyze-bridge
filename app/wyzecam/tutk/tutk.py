@@ -110,6 +110,11 @@ AV_ER_LOSED_THIS_FRAME = -20014
 An error sent during video streaming if the frame was lost in transmission.
 """
 
+AV_ER_SENDIOCTRL_ALREADY_CALLED = -20021
+"""
+An error raised if the IOCTRL message was already sent
+"""
+
 project_root = pathlib.Path(__file__).parent
 
 
@@ -412,6 +417,28 @@ class SInfoStructEx(FormattedStructure):
             c_uint8,
         ),  # 0: Session not created by nebula, 1: Session created by nebula
     ]
+    def __repr__(self):
+        return (f"SInfoStructEx("
+                f"{self.size=}, "
+                f"{self.mode=}, "
+                f"{self.c_or_d=}, "
+                f"uid={self.uid.decode('ascii')!r}, "
+                f"remote_ip={self.remote_ip.decode('ascii')!r}, "
+                f"{self.remote_port=}, "
+                f"{self.tx_packet_count=}, "
+                f"{self.rx_packet_count=}, "
+                f"{self.iotc_version=}, "
+                f"{self.vendor_id=}, "
+                f"{self.product_id=}, "
+                f"{self.group_id=}, "
+                f"{self.is_secure=}, "
+                f"{self.local_nat_type=}, "
+                f"{self.remote_nat_type=}, "
+                f"{self.relay_type=}, "
+                f"{self.net_state=}, "
+                f"remote_wan_ip={self.remote_wan_ip.decode('ascii')!r}, "
+                f"{self.remote_wan_port=}, "
+                f"{self.is_nebula=})")
 
 class FrameInfoStruct(FormattedStructure):
     """
@@ -462,6 +489,24 @@ class FrameInfoStruct(FormattedStructure):
         ("n_play_token", c_int32),
     ]
 
+    def __repr__(self):
+        is_keyframe = True if self.is_keyframe else False
+        ac_mac_addr = f"{self.ac_mac_addr.decode('ascii')!r}"
+        return (f"FrameInfoStruct("
+                f"{self.codec_id=}, "
+                f"{is_keyframe=}, "
+                f"{self.cam_index=}, "
+                f"{self.online_num=}, "
+                f"{self.framerate=}, "
+                f"{self.frame_size=}, "
+                f"{self.bitrate=}, "
+                f"{self.timestamp_ms=}, "
+                f"{self.timestamp=}, "
+                f"{self.frame_len=}, "
+                f"{self.frame_no=}, "
+                f"{ac_mac_addr=}, "
+                f"{self.n_play_token=})")
+
 class FrameInfo3Struct(FormattedStructure):
     _fields_ = [
         ("codec_id", c_uint16),
@@ -483,18 +528,51 @@ class FrameInfo3Struct(FormattedStructure):
         ("face_height", c_uint16),
     ]
 
+    def __repr__(self):
+        is_keyframe = True if self.is_keyframe else False
+        ac_mac_addr = f"{self.ac_mac_addr.decode('ascii')!r}"
+        return (f"FrameInfo3Struct("
+                f"{self.codec_id=}, "
+                f"{is_keyframe=}, "
+                f"{self.cam_index=}, "
+                f"{self.online_num=}, "
+                f"{self.framerate=}, "
+                f"{self.frame_size=}, "
+                f"{self.bitrate=}, "
+                f"{self.timestamp_ms=}, "
+                f"{self.timestamp=}, "
+                f"{self.frame_len=}, "
+                f"{self.frame_no=}, "
+                f"{ac_mac_addr=}, "
+                f"{self.n_play_token=}, "
+                f"{self.face_pos_x=}, "
+                f"{self.face_pos_y=}, "
+                f"{self.face_width=}, "
+                f"{self.face_height=})")
+
 class St_IOTCCheckDeviceInput(FormattedStructure):
     _fields_ = [
         ("cb", c_uint32),
         ("auth_type", c_uint32),
         ("auth_key", c_char * 8),
     ]
+    
+    def __repr__(self):
+        return (f"St_IOTCCheckDeviceInput("
+                f"{self.cb=}, "
+                f"{self.auth_type=}, "
+                f"auth_key={self.auth_key.decode('ascii')!r})")
 
 class St_IOTCCheckDeviceOutput(FormattedStructure):
     _fields_ = [
         ("status", c_uint32),
         ("last_login", c_uint32),
     ]
+
+    def __repr__(self):
+        return (f"St_IOTCCheckDeviceOutput("
+                f"{self.status=}, "
+                f"{self.last_login=})")
 
 class St_IOTCConnectInput(FormattedStructure):
     _fields_ = [
@@ -504,6 +582,14 @@ class St_IOTCConnectInput(FormattedStructure):
         ("timeout", c_uint32),
     ]
 
+    def __repr__(self):
+        auth_key = f"{self.auth_key.decode('ascii')!r}"
+        return (f"St_IOTCConnectInput("
+                f"{self.cb=}, "
+                f"{self.authentication_type=}, "
+                f"{auth_key=}, "
+                f"{self.timeout=})")
+
 class LogAttr(FormattedStructure):
     _fields_ = [
         ("path", c_char_p),
@@ -512,6 +598,14 @@ class LogAttr(FormattedStructure):
         ("file_max_count", c_int32),
     ]
 
+    def __repr__(self):
+        path = f"{self.path.decode('ascii')!r}" if self.path else None
+        return (f"LogAttr("
+                f"{path=}, "
+                f"{self.log_level=}, "
+                f"{self.file_max_size=}, "
+                f"{self.file_max_count=})")
+        
 class AVClientStartInConfig(FormattedStructure):
     _fields_ = [
         ("cb", c_uint32),
@@ -525,6 +619,21 @@ class AVClientStartInConfig(FormattedStructure):
         ("auth_type", c_uint32),
         ("sync_recv_data", c_int32),
     ]
+    
+    def __repr__(self):
+        account_or_identity = f"{self.account_or_identity.decode('ascii')!r}" if self.account_or_identity else None
+        password_or_token = f"{self.password_or_token.decode('ascii')!r}" if self.password_or_token else None
+        return (f"AVClientStartInConfig("
+                f"{self.cb=}, "
+                f"{self.iotc_session_id=}, "
+                f"{self.iotc_channel_id=}, "
+                f"{self.timeout_sec=}, "
+                f"{account_or_identity=}, "
+                f"{password_or_token=}, "
+                f"{self.resend=}, "
+                f"{self.security_mode=}, "
+                f"{self.auth_type=}, "
+                f"{self.sync_recv_data=})")
 
 class AVClientStartOutConfig(FormattedStructure):
     _fields_ = [
@@ -535,6 +644,15 @@ class AVClientStartOutConfig(FormattedStructure):
         ("sync_recv_data", c_int32),
         ("security_mode", c_uint32),
     ]
+
+    def __repr__(self):
+        return (f"AVClientStartOutConfig("
+                f"{self.cb=}, "
+                f"{self.server_type=}, "
+                f"{self.resend=}, "
+                f"{self.two_way_streaming=}, "
+                f"{self.sync_recv_data=}, "
+                f"{self.security_mode=})")
 
 def av_recv_frame_data(tutk_platform_lib: CDLL, av_chan_id: c_int) -> tuple[
     int,
@@ -556,20 +674,20 @@ def av_recv_frame_data(tutk_platform_lib: CDLL, av_chan_id: c_int) -> tuple[
     frame_data_buffer = create_string_buffer(frame_data_max_len)
     frame_info_buffer = create_string_buffer(frame_info_max_len)
 
-    frame_data_actual_len = c_int32()
-    frame_data_expected_len = c_int32()
-    frame_info_actual_len = c_int32()
-    frame_index = c_uint()
+    frame_data_actual_len = c_int32(0)
+    frame_data_expected_len = c_int32(0)
+    frame_info_actual_len = c_int32(0)
+    frame_index = c_uint(0)
 
     logger.debug(f"[TUTK] Calling avRecvFrameData2 av_chan_id: {av_chan_id}")
     errno = tutk_platform_lib.avRecvFrameData2(
         av_chan_id,
         frame_data_buffer,
-        frame_data_max_len,
+        c_int(frame_data_max_len),
         byref(frame_data_actual_len),
         byref(frame_data_expected_len),
         frame_info_buffer,
-        frame_info_max_len,
+        c_int(frame_info_max_len),
         byref(frame_info_actual_len),
         byref(frame_index),
     )
@@ -578,11 +696,11 @@ def av_recv_frame_data(tutk_platform_lib: CDLL, av_chan_id: c_int) -> tuple[
     if errno < 0:
         return errno, None, None, None
 
-    frame_data = memoryview(frame_data_buffer)[: frame_data_actual_len.value].tobytes()
-    frame_info = cast(frame_info_buffer, POINTER(FrameInfoStruct)).contents
+    video_data = memoryview(frame_data_buffer)[: frame_data_actual_len.value].tobytes()
+    frame_info = get_frame_info(frame_info_buffer, frame_info_actual_len)
 
-    return 0, frame_data, frame_info, frame_index.value
-
+    logger.debug(f"[TUTK] Received video frame {frame_info=}")
+    return 0, video_data, frame_info, frame_index.value
 
 def av_recv_audio_data(tutk_platform_lib: CDLL, av_chan_id: c_int):
     """An AV client receives audio data from an AV server.
@@ -593,13 +711,12 @@ def av_recv_audio_data(tutk_platform_lib: CDLL, av_chan_id: c_int):
     :param av_chan_id: The channel ID of the AV channel to recv data on.
     :return: a 4-tuple of errno, audio_data, frame_info, and frame_index
     """
-
     audio_data_max_size = 51_200
-    frame_info_max_size = 1024
+    frame_info_max_size = 4096
 
     audio_data_buffer = create_string_buffer(audio_data_max_size)
     frame_info_buffer = create_string_buffer(frame_info_max_size)
-    frame_index = c_uint32()
+    frame_index = c_uint32(0)
 
     logger.debug(f"[TUTK] Calling avRecvAudioData {av_chan_id=}")
     frame_len = tutk_platform_lib.avRecvAudioData(
@@ -617,9 +734,21 @@ def av_recv_audio_data(tutk_platform_lib: CDLL, av_chan_id: c_int):
 
     audio_data = memoryview(audio_data_buffer)[:frame_len].tobytes()
     frame_info = cast(frame_info_buffer, POINTER(FrameInfo3Struct)).contents
-
+    logger.debug(f"[TUTK] Received audio frame {frame_info=}")
     return 0, audio_data, frame_info
 
+def get_frame_info(frame_info_buffer, frame_info_actual_len):
+    frame_info: Union[FrameInfoStruct, FrameInfo3Struct | None]
+    
+    if frame_info_actual_len.value == sizeof(FrameInfo3Struct):
+        frame_info = cast(frame_info_buffer, POINTER(FrameInfo3Struct)).contents
+    elif frame_info_actual_len.value == sizeof(FrameInfoStruct):
+        frame_info = cast(frame_info_buffer, POINTER(FrameInfoStruct)).contents
+    else:
+        logger.warning(f"[TUTK] Unexpected frame length {frame_info_actual_len=}")
+        frame_info = None
+
+    return frame_info
 
 def av_check_audio_buf(tutk_platform_lib: CDLL, av_chan_id: c_int) -> int:
     """Get the frame count of audio buffer remaining in the queue."""
@@ -627,7 +756,6 @@ def av_check_audio_buf(tutk_platform_lib: CDLL, av_chan_id: c_int) -> int:
     result = tutk_platform_lib.avCheckAudioBuf(av_chan_id)
     logger.debug(f"[TUTK] avCheckAudioBuf returned {result=}")
     return result
-
 
 def av_recv_io_ctrl(
     tutk_platform_lib: CDLL, av_chan_id: c_int, timeout_ms: int
@@ -647,7 +775,7 @@ def av_recv_io_ctrl(
 
     logger.debug(f"[TUTK] Calling avRecvIOCtrl {av_chan_id=}")
     frame_len = tutk_platform_lib.avRecvIOCtrl(
-        av_chan_id, byref(pn_io_ctrl_type), ctl_buffer, ctl_data_len, timeout_ms
+        av_chan_id, byref(pn_io_ctrl_type), ctl_buffer, c_int(ctl_data_len), c_uint(timeout_ms)
     )
     logger.debug(f"[TUTK] avRecvIOCtrl returned {frame_len=}, {pn_io_ctrl_type=}")
     
@@ -807,6 +935,8 @@ def av_client_start(
     avc_in.password_or_token = password
     avc_in.resend = resend
     avc_in.security_mode = 2
+    avc_in.auth_type = 0
+    avc_in.sync_recv_data = 0
 
     avc_out = AVClientStartOutConfig()
     avc_out.cb = sizeof(avc_out)
@@ -881,7 +1011,7 @@ def iotc_connect_by_uid(tutk_platform_lib: CDLL, p2p_id: str) -> c_int:
     """
     logger.debug(f"[TUTK] Calling IOTC_Connect_ByUID {p2p_id=}")
     session_id: c_int = tutk_platform_lib.IOTC_Connect_ByUID(
-        c_char_p(p2p_id.encode("ascii"))
+        c_char_p(p2p_id.encode("ascii")) # , p2p-id https://github.com/kroo/wyzecam/compare/main...mrlt8:wyzecam:dev#diff-4c514493ec78af5de7272e675354bb93bb97ebc59874a9ab6c3da641351dce38R786
     )
     logger.debug(f"[TUTK] IOTC_Connect_ByUID returned {session_id=}")
     return session_id
@@ -951,7 +1081,7 @@ def iotc_connect_by_uid_ex(
     p2p_id: str,
     session_id: c_int,
     auth_key: str,
-    timeout: int = 20,
+    timeout: int = 60,
 ) -> c_int:
     """Used by a client to connect a device.
 
@@ -968,12 +1098,13 @@ def iotc_connect_by_uid_ex(
     """
     connect_input = St_IOTCConnectInput()
     connect_input.cb = sizeof(connect_input)
+    connect_input.authenticationType = 0
     connect_input.auth_key = auth_key.encode()
     connect_input.timeout = timeout
 
     logger.debug(f"[TUTK] Calling IOTC_Connect_ByUIDEx {p2p_id=}, {session_id=}, {connect_input=}")
     result = tutk_platform_lib.IOTC_Connect_ByUIDEx(
-        p2p_id.encode(), session_id, byref(connect_input)
+        c_char_p(p2p_id.encode("ascii")), session_id, byref(connect_input)
     )
     logger.debug(f"[TUTK] IOTC_Connect_ByUIDEx returned {result=}, {connect_input=}")
     return result
@@ -997,15 +1128,6 @@ def iotc_connect_stop_by_session_id(
     errno: c_int = tutk_platform_lib.IOTC_Connect_Stop_BySID(session_id)
     logger.debug(f"[TUTK] IOTC_Connect_Stop_BySID returned {errno=}")
     return errno
-
-def iotc_set_log_path(tutk_platform_lib: CDLL, path: str) -> None:
-    """DEPRECATED
-    Set path of log file.
-
-    Set the absolute path of log file
-    """
-    logger.debug(f"[TUTK] Calling IOTC_Set_Log_Path {path=}")
-    tutk_platform_lib.IOTC_Set_Log_Path(c_char_p(path.encode("ascii")), c_int(0))
 
 def iotc_set_log_attr(
     tutk_platform_lib: CDLL,

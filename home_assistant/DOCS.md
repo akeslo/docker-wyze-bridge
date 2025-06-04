@@ -31,6 +31,7 @@ Camera specific options can now be passed to the bridge using `CAM_OPTIONS`. To 
   ROTATE: true
 - CAM_NAME: Back door
   QUALITY: SD50
+  RECORD: true
 ```
 
 Available options:
@@ -39,11 +40,13 @@ Available options:
 - `FFMPEG` - Use a custom ffmpeg command for this camera.
 - `LIVESTREAM` - Specify a rtmp url to livestream to for this camera.
 - `NET_MODE` - Change the allowed net mode for this camera only.
-- `QUALITY` - Adjust the quality for this camera only.
-- `SUBSTREAM` - Enable a substream for this camera.
-- `SUB_QUALITY` - Adjust the quality for this substream.
-- `RECORD` - Enable recording for this camera.
 - `ROTATE` - Rotate this camera 90 degrees clockwise.
+- `QUALITY` - Adjust the quality for this camera only.
+- `SUB_QUALITY` - Adjust the quality for this camera's substream.
+- `FORCE_FPS` - Sets the frames-per-second for this camera.
+- `RECORD` - Enable recording for this camera.
+- `SUB_RECORD` - Enable recording of the substream for this camera.
+- `SUBSTREAM` - Enable a substream for this camera.
 - `MOTION_WEBHOOKS` - Specify a url to POST to when motion is detected.
 
 ## URIs

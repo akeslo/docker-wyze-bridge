@@ -110,7 +110,6 @@ schema:
   H264_ENC: str?
   FORCE_ENCODE: bool?
   IGNORE_OFFLINE: bool?
-  OFFLINE_WEBHOOKS: bool?
   FRESH_DATA: bool?
   URI_MAC: bool?
   URI_SEPARATOR: list(-|_|#)?

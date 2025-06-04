@@ -16,8 +16,11 @@ logger.setLevel(logging.DEBUG)
 warnings.formatwarning = lambda msg, *args, **kwargs: f"WARNING: {msg}"
 logging.captureWarnings(True)
 
+def isDebugEnabled(logger):
+    return logger.isEnabledFor(logging.DEBUG)
+
 def clear_handler(handler: logging.Handler):
-    for logger_name in ("WyzeBridge", "", "werkzeug", "py.warnings"):
+    for logger_name in ("WyzeBridge", "", "werkzeug", "wyzecam.iotc", "py.warnings"):
         target_logger = logging.getLogger(logger_name)
         for existing_handler in target_logger.handlers:
             if type(existing_handler) is type(handler):

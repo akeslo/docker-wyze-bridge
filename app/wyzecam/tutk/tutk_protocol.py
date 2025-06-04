@@ -70,7 +70,7 @@ class TutkWyzeProtocolMessage:
     :vartype code: int
     :var expected_response_code: the code of the message expected to
                                  be the 'response' to this one, from
-                                 the camera.
+                                 the camera and is always code + 1
     :vartype expected_response_code: int
     """
 
@@ -1347,7 +1347,7 @@ def respond_to_ioctrl_10001(
 
     if product_model in DOORBELL and supports(product_model, protocol, 10006):
         response = K10006ConnectUserAuth(resp, phone_id, open_userid, audio=audio)
-    elif supports(product_model, protocol, 10008):
+    elif product_model != "WYZEDB3" and supports(product_model, protocol, 10008): # https://github.com/kroo/wyzecam/compare/v1.1.0...v1.2.0#diff-683cfded8e7a6b1c96f1110685f6e004c086b006efd0f5e43bc9416dafe2325eR494
         response = K10008ConnectUserAuth(resp, phone_id, open_userid, audio=audio)
     else:
         response = K10002ConnectAuth(resp, mac, audio=audio)

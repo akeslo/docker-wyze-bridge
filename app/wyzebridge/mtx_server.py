@@ -24,19 +24,17 @@ class MtxInterface:
         self._load_config()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is not None or exc_value is not None or traceback is not None:
-            logger.debug(f"Exiting MtxInterface {exc_type=} {exc_value=} {traceback=}")
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         if self._modified:
             self._save_config()
 
     def _load_config(self):
-        logger.info(f"Reading config from {MTX_CONFIG=}")
+        logger.info(f"[MTX] Reading config from {MTX_CONFIG=}")
         with open(MTX_CONFIG, "r") as f:
             self.data = yaml.safe_load(f) or {}
 
     def _save_config(self):
-        logger.info(f"Writing config to {MTX_CONFIG=}")
+        logger.info(f"[MTX] Writing config to {MTX_CONFIG=}")
         with open(MTX_CONFIG, "w") as f:
             yaml.safe_dump(self.data, f, sort_keys=False)
 
