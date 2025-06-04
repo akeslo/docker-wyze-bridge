@@ -55,6 +55,19 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.10.11
+
+- Fix errors in startup avClientStartEx doesn't return a tuple
+- Fix path construction for MediaMTX
+- Fix python lint warnings and a whole lot of logging and type cleanup
+- Move environment stuff to config and config reading out of mtx_server
+- Don't complain about directories existing in migration
+- Attempt to ensure directories for recordings
+- Capture stdout of MediaMTX and openssl for logging
+- Capture the traceback before context corrupted
+- Switched to better logging syntax
+- Let's declare the ports we EXPOSE in the Dockerfile(s)
+
 ## What's Changed in v3.10.10
 
 - Add camera IP to MQTT message
