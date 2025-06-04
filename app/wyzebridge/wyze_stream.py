@@ -17,7 +17,7 @@ from typing import Optional
 from wyzebridge.bridge_utils import env_bool, env_cam
 from wyzebridge.config import COOLDOWN, MQTT_TOPIC
 from wyzebridge.ffmpeg import get_ffmpeg_cmd
-from wyzebridge.logging import logger
+from wyzebridge.logging import logger, isDebugEnabled
 from wyzebridge.mqtt import publish_discovery, publish_messages, update_mqtt_state
 from wyzebridge.webhooks import send_webhook
 from wyzebridge.wyze_api import WyzeApi
@@ -459,29 +459,26 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
             state.value = StreamStatus.CONNECTED
             with Popen(ffmpeg_cmd, stdin=PIPE, stdout=None, stderr=None) as ffmpeg:
                 if ffmpeg.stdin is not None:
-                    for frame in sess.recv_bridge_data():
+                    for frame, _ in sess.recv_bridge_data():
                         ffmpeg.stdin.write(frame)
 
     except TutkError as ex:
-        trace = traceback.format_exc()
-        logger.warning(f"𓁈‼️ {[ex.code]} {ex}")
-        logger.debug(trace)
+        trace = traceback.format_exc() if isDebugEnabled(logger) else ""
+        logger.warning(f"𓁈‼️ [TUTK] {[ex.code]} {ex} {trace}")
         set_cam_offline(uri, ex, was_offline)
         if ex.code in {-10, -13, -19, -68, -90}: # IOTC_ER_UNLICENSE, IOTC_ER_TIMEOUT, IOTC_ER_CAN_NOT_FIND_DEVICE, IOTC_ER_DEVICE_REJECT_BY_WRONG_AUTH_KEY, IOTC_ER_DEVICE_OFFLINE
             exit_code = ex.code
     except ValueError as ex:
-        trace = traceback.format_exc()
-        logger.warning(f"𓁈⚠️ [TUTK] Error: [{type(ex).__name__}] {ex}")
-        logger.debug(trace)
+        trace = traceback.format_exc() if isDebugEnabled(logger) else ""
+        logger.warning(f"𓁈⚠️ [TUTK] Error: [{type(ex).__name__}] {ex} {trace}")
         if ex.args[0] == "ENR_AUTH_FAILED":
             logger.warning("⏰ Expired ENR?")
             exit_code = -19 # IOTC_ER_CAN_NOT_FIND_DEVICE
     except BrokenPipeError:
         logger.info("𓁈✋ [TUTK] FFMPEG stopped")
     except Exception as ex:
-        trace = traceback.format_exc()
-        logger.warning(f"𓁈‼️ [TUTK] Exception: [{type(ex).__name__}] {ex}")
-        logger.debug(trace)
+        trace = traceback.format_exc() if isDebugEnabled(logger) else ""
+        logger.warning(f"𓁈‼️ [TUTK] Exception: [{type(ex).__name__}] {ex} {trace}")
     else:
         logger.warning("𓁈🛑 [TUTK] Stream stopped")
     finally:

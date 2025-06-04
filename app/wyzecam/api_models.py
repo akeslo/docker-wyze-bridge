@@ -41,7 +41,6 @@ NO_WEBRTC = {
     "AN_RDB1",
 }
 
-
 # known 2k cameras
 PRO_CAMS = {"HL_CAM3P", "HL_PANP", "HL_CAM4", "HL_DB2", "HL_CFL2"}
 
@@ -60,7 +59,6 @@ VERTICAL_CAMS = {"WYZEDB3", "GW_BE1", "AN_RDB1"}
 SUBSTREAM_FW = {"WYZEC1-JZ": "4.9.9", "WYZE_CAKP2JFUS": "4.36.10", "HL_CAM3P": "4.58.0"}
 
 RTSP_FW = {"4.19.", "4.20.", "4.28.", "4.29.", "4.61."}
-
 
 class WyzeCredential(BaseModel):
     """Authenticated credentials; see [wyzecam.api.login][].

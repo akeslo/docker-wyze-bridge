@@ -1,7 +1,6 @@
 import contextlib
 import logging
 import threading
-import time
 from collections import defaultdict
 from ctypes import CDLL, c_int, c_uint
 from queue import Empty, Queue
@@ -14,7 +13,6 @@ STOP_SENTINEL = object()
 CONTROL_CHANNEL = "CONTROL"
 
 logger = logging.getLogger(__name__)
-
 
 class TutkIOCtrlFuture:
     """
@@ -59,9 +57,7 @@ class TutkIOCtrlFuture:
             return self.req.parse_response(self.resp_data)
         if self.errcode:
             raise tutk.TutkError(self.errcode)
-        if self.expected_response_code is None:
-            logger.warning("no response code!")
-            return None
+
         assert self.queue is not None, "Future created without error nor queue!"
 
         msg = self.queue.get(block=block, timeout=timeout)
@@ -139,7 +135,7 @@ class TutkIOCtrlMux:
         """
         timeout = {"timeout": 2} if self.block else {}
         if not TutkIOCtrlMux._context_lock.acquire(blocking=self.block, **timeout):
-            raise tutk.TutkError(-20021)
+            raise tutk.TutkError(tutk.AV_ER_SENDIOCTRL_ALREADY_CALLED)
         self.listener.start()
 
     def stop_listening(self) -> None:
@@ -156,7 +152,7 @@ class TutkIOCtrlMux:
         self.start_listening()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         self.stop_listening()
 
     def send_ioctl(
@@ -186,75 +182,14 @@ class TutkIOCtrlMux:
         encoded_msg_header = tutk_protocol.TutkWyzeProtocolHeader.from_buffer_copy(
             encoded_msg[0:16]
         )
-        logger.debug("SEND %s %s %s", msg, encoded_msg_header, encoded_msg[16:])
+        logger.debug(f"[TUTKI] SEND {msg=}, {encoded_msg_header=}, encoded_msg={encoded_msg[16:]}")
         errcode = tutk.av_send_io_ctrl(
             self.tutk_platform_lib, self.av_chan_id, ctrl_type, encoded_msg
         )
         if errcode:
             return TutkIOCtrlFuture(msg, errcode=c_int(errcode))
-        if not msg.expected_response_code:
-            logger.warning("no expected response code found")
-            return TutkIOCtrlFuture(msg)
 
         return TutkIOCtrlFuture(msg, self.queues[msg.expected_response_code])
-
-    def waitfor(
-        self,
-        futures: Union[TutkIOCtrlFuture, list[TutkIOCtrlFuture]],
-        timeout: Optional[int] = None,
-    ) -> Union[Any, list[Any]]:
-        """Wait for the responses of one or more `TutkIOCtrlFuture`s.
-
-        ```python
-        with session.ioctrl_mux() as mux:
-            f1 = mux.send_ioctl(msg)
-            f2 = mux.send_ioctl(msg2)
-
-            resp1, resp2 = mux.waitfor([f1, f2])
-        ```
-
-        This allows you to wait for a set of `TutkIOCtrlFuture`s to respond in
-        any order, and allows you to send multiple commands to the camera without
-        waiting for each one to return before sending another.
-
-        If you are sending one command at a time, consider using
-        `TutkIOCtrlFuture.result()` directly:
-
-        ```python
-        with session.ioctrl_mux() as mux:
-            f1 = mux.send_ioctl(msg)
-            resp1 = f1.result()
-            f2 = mux.send_ioctl(msg2)
-            resp2 = f2.result()
-        ```
-        """
-        unwrap_single_item = False
-        if isinstance(futures, TutkIOCtrlFuture):
-            futures = [futures]
-            unwrap_single_item = True
-        results = [None] * len(futures)
-        start = time.time()
-        while (timeout is None or time.time() - start <= timeout) and any(
-            result is None for result in results
-        ):
-            all_success = True
-            for i, future in enumerate(futures):
-                if results[i] is not None:
-                    continue
-
-                try:
-                    result = future.result(block=False)
-                    results[i] = result
-                except Empty:
-                    all_success = False
-            # if we don't get all of them this pass, wait a short period before checking again
-            if not all_success:
-                time.sleep(0.1)
-
-        if unwrap_single_item:
-            return results[0]
-        else:
-            return results
 
 class TutkIOCtrlMuxListener(threading.Thread):
     __slots__ = "tutk_platform_lib", "av_chan_id", "queues", "exception"
@@ -280,13 +215,13 @@ class TutkIOCtrlMuxListener(threading.Thread):
 
     def run(self) -> None:
         timeout_ms = 1000
-        logger.debug(f"Now listening on channel id {self.av_chan_id}")
+        logger.debug(f"[TUTKI] Now listening on {self.av_chan_id=}")
 
         while True:
             with contextlib.suppress(Empty):
                 control_channel_command = self.queues[CONTROL_CHANNEL].get_nowait()
                 if control_channel_command == STOP_SENTINEL:
-                    logger.debug(f"No longer listening on channel id {self.av_chan_id}")
+                    logger.debug(f"[TUTKI] No longer listening on {self.av_chan_id=}")
                     return
             actual_len, io_ctl_type, data = tutk.av_recv_io_ctrl(
                 self.tutk_platform_lib, self.av_chan_id, timeout_ms
@@ -294,17 +229,17 @@ class TutkIOCtrlMuxListener(threading.Thread):
             if actual_len == tutk.AV_ER_TIMEOUT:
                 continue
             elif actual_len == tutk.AV_ER_SESSION_CLOSE_BY_REMOTE:
-                logger.warning("Connection closed by remote. Closing connection.")
+                logger.warning("[TUTKI] Connection closed by remote. Closing connection.")
                 break
             elif actual_len == tutk.AV_ER_REMOTE_TIMEOUT_DISCONNECT:
-                logger.warning("Connection closed because of no response from remote.")
+                logger.warning("[TUTKI] Connection closed because of no response from remote.")
                 break
             elif actual_len < 0:
                 self.exception = tutk.TutkError(actual_len)
                 break
 
             header, payload = tutk_protocol.decode(data)
-            logger.debug(f"RECV {header}: {repr(payload)}")
+            logger.debug(f"[TUTKI] RECV {header}: {repr(payload)}")
 
             self.queues[header.code].put(
                 (actual_len, io_ctl_type, header.protocol, payload)

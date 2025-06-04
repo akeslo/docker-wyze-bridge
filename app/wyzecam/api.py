@@ -40,11 +40,10 @@ SC_SV = {
     },
 }
 APP_KEY = {"9319141212m2ik": "wyze_app_secret_key_132"}
-
+WYZE_APP_API_KEY = "WMXHYf79Nr5gIlt3r0r7p9Tcw5bvs6BB4U8O8nGJ"
 
 class AccessTokenError(Exception):
     pass
-
 
 class RateLimitError(Exception):
     def __init__(self, resp: Response):
@@ -68,13 +67,11 @@ class RateLimitError(Exception):
         except Exception:
             return 0
 
-
 class WyzeAPIError(Exception):
     def __init__(self, code, msg: str, req: PreparedRequest):
         self.code = code
         self.msg = msg
         super().__init__(f"{code=} {msg=} method={req.method} path={req.path_url}")
-
 
 def login(
     email: str, password: str, api_key: str, key_id: str, phone_id: Optional[str] = None
@@ -106,6 +103,67 @@ def login(
 
     return WyzeCredential.model_validate(resp_json)
 
+def mfa_login(
+    email: str,
+    password: str,
+    phone_id: str,
+    mfa_type: str,
+    verification_id: str,
+    verification_code: str,
+) -> WyzeCredential:
+    """Complete the MFA Authentication with Wyze
+    This method calls out to the `/user/login` endpoint of
+    `auth-prod.api.wyze.com` (using https), with the verification code 
+    to retrieve an access token necessary to retrieve other information 
+    from the wyze server.
+    :param email: Email address used to log into wyze account
+    :param password: Password used to log into wyze account.
+    :param phone_id: the ID of the device to emulate when talking to wyze.
+    :param mfa_type: The MFA type used - `PrimaryPhone` for SMS based verification
+                     and `TotpVerificationCode` for time-based one-time passwords.
+    :param verification_id: `session_id` for SMS-based verification or `app_id` for
+                            time-based one-time passwords.
+    :param verification_code: The verification code from SMS or TOTP app.
+    :returns: a [WyzeCredential][wyzecam.api.WyzeCredential] with the access information, suitable
+              for passing to [get_user_info()][wyzecam.api.get_user_info], or
+              [get_camera_list()][wyzecam.api.get_camera_list].
+    """
+    payload = {
+        "email": email,
+        "password": hash_password(password),
+        "mfa_type": mfa_type,
+        "verification_id": verification_id,
+        "verification_code": verification_code,
+    }
+    resp = post(
+        "https://auth-prod.api.wyze.com/user/login",
+        json=payload,
+        headers=_headers(phone_id),
+    )
+    resp.raise_for_status()
+    return WyzeCredential.parse_obj(dict(resp.json(), phone_id=phone_id))
+
+def send_sms_code(auth_info: WyzeCredential) -> str:
+    """Request SMS verification code
+    This method calls out to the `/user/login/sendSmsCode` endpoint of
+    `auth-prod.api.wyze.com` (using https), and requests an SMS verification
+    code necessary to login to accounts with SMS verification enabled.
+    :param auth_info: the result of a [`login()`][wyzecam.api.login] call.
+    :returns: verification_id required to logging in with SMS verification.
+    """
+    payload = {
+        "mfaPhoneType": "Primary",
+        "sessionId": auth_info.sms_session_id,
+        "userId": auth_info.user_id,
+    }
+    resp = post(
+        "https://auth-prod.api.wyze.com/user/login/sendSmsCode",
+        json={},
+        params=payload,
+        headers=_headers(auth_info.phone_id),
+    )
+    resp.raise_for_status()
+    return resp.json().get("session_id")
 
 def refresh_token(auth_info: WyzeCredential) -> WyzeCredential:
     """Refresh Auth Token.
@@ -123,14 +181,14 @@ def refresh_token(auth_info: WyzeCredential) -> WyzeCredential:
     payload = _payload(auth_info)
     payload["refresh_token"] = auth_info.refresh_token
 
-    resp = post(f"{WYZE_API}/user/refresh_token", json=payload, headers=_headers())
+    ui_headers = _headers() # (auth_info.phone_id, SCALE_USER_AGENT)
+    resp = post(f"{WYZE_API}/user/refresh_token", json=payload, headers=ui_headers)
 
     resp_json = validate_resp(resp)
     resp_json["user_id"] = auth_info.user_id
     resp_json["phone_id"] = auth_info.phone_id
 
     return WyzeCredential.model_validate(resp_json)
-
 
 def get_user_info(auth_info: WyzeCredential) -> WyzeAccount:
     """Get Wyze Account Information.
@@ -144,15 +202,16 @@ def get_user_info(auth_info: WyzeCredential) -> WyzeAccount:
           for passing to [`WyzeIOTC.connect_and_auth()`][wyzecam.iotc.WyzeIOTC.connect_and_auth].
 
     """
+    payload = _payload(auth_info)
+    ui_headers = _headers() # (auth_info.phone_id, SCALE_USER_AGENT)
     resp = post(
-        f"{WYZE_API}/user/get_user_info", json=_payload(auth_info), headers=_headers()
+        f"{WYZE_API}/user/get_user_info", json=payload, headers=ui_headers
     )
 
     resp_json = validate_resp(resp)
     resp_json["phone_id"] = auth_info.phone_id
 
     return WyzeAccount.model_validate(resp_json)
-
 
 def get_homepage_object_list(auth_info: WyzeCredential) -> dict[str, Any]:
     """Get all homepage objects."""
@@ -163,7 +222,6 @@ def get_homepage_object_list(auth_info: WyzeCredential) -> dict[str, Any]:
     )
 
     return validate_resp(resp)
-
 
 def get_camera_list(auth_info: WyzeCredential) -> list[WyzeCamera]:
     """Return a list of all cameras on the account."""
@@ -191,6 +249,13 @@ def get_camera_list(auth_info: WyzeCredential) -> list[WyzeCamera]:
             "thumbnails_url"
         )
 
+        if not p2p_type:
+            continue
+        if not ip:
+            continue
+        if not enr:
+            continue
+        # above added, validate
         if not mac:
             continue
         if not product_model:
@@ -216,7 +281,6 @@ def get_camera_list(auth_info: WyzeCredential) -> list[WyzeCamera]:
         )
     return result
 
-
 def run_action(auth_info: WyzeCredential, camera: WyzeCamera, action: str):
     """Send run_action commands to the camera."""
     payload = dict(
@@ -230,7 +294,6 @@ def run_action(auth_info: WyzeCredential, camera: WyzeCamera, action: str):
     resp = post(f"{WYZE_API}/v2/auto/run_action", json=payload, headers=_headers())
 
     return validate_resp(resp)
-
 
 def post_device(
     auth_info: WyzeCredential, endpoint: str, params: dict, api_version: int = 1
@@ -249,15 +312,14 @@ def post_device(
 
     return validate_resp(resp)
 
-
 def get_cam_webrtc(auth_info: WyzeCredential, mac_id: str) -> dict:
     """Get webrtc for camera."""
     if not auth_info.access_token:
         raise AccessTokenError()
 
-    ui_headers = _headers()
+    ui_headers = _headers() # (auth_info.phone_id, SCALE_USER_AGENT)
     ui_headers["content-type"] = "application/json"
-    ui_headers["authorization"] = f"Bearer {auth_info.access_token}"
+    ui_headers["authorization"] = f"Bearer {auth_info.access_token}" # doesn't match upstream which just passes the token
     resp = get(
         f"https://webrtc.api.wyze.com/signaling/device/{mac_id}?use_trickle=true",
         headers=ui_headers,
@@ -268,11 +330,11 @@ def get_cam_webrtc(auth_info: WyzeCredential, mac_id: str) -> dict:
             s["urls"] = s.pop("url")
 
     return {
-        "ClientId": auth_info.phone_id,
         "signalingUrl": urllib.parse.unquote(resp_json["results"]["signalingUrl"]),
+        "ClientId": auth_info.phone_id,
+        "signalToken": resp_json["results"]["signalToken"],
         "servers": resp_json["results"]["servers"],
     }
-
 
 def validate_resp(resp: Response) -> dict:
     if int(resp.headers.get("X-RateLimit-Remaining", 100)) <= 10:
@@ -291,7 +353,6 @@ def validate_resp(resp: Response) -> dict:
 
     return resp_json.get("data", resp_json)
 
-
 def _payload(auth_info: WyzeCredential, endpoint: str = "default") -> dict:
     values = SC_SV.get(endpoint, SC_SV["default"])
     return {
@@ -305,7 +366,6 @@ def _payload(auth_info: WyzeCredential, endpoint: str = "default") -> dict:
         "access_token": auth_info.access_token,
         "phone_id": auth_info.phone_id,
     }
-
 
 def _headers(
     phone_id: Optional[str] = None,
@@ -333,11 +393,10 @@ def _headers(
         }
 
     return {
-        "x-api-key": "WMXHYf79Nr5gIlt3r0r7p9Tcw5bvs6BB4U8O8nGJ",
+        "x-api-key": WYZE_APP_API_KEY, # maybe should be "X-API-Key" https://github.com/kroo/wyzecam/compare/main...mrlt8:wyzecam:main#diff-85e3fea18dd9245a839a4d5ed2850300e191ce6fd45f08af71e41a4cb7bdf893R228
         "phone-id": phone_id,
         "user-agent": f"wyze_ios_{APP_VERSION}",
     }
-
 
 def sign_payload(auth_info: WyzeCredential, app_id: str, payload: str) -> dict:
     if not auth_info.access_token:
@@ -355,7 +414,6 @@ def sign_payload(auth_info: WyzeCredential, app_id: str, payload: str) -> dict:
         "signature2": sign_msg(app_id, payload, auth_info.access_token),
     }
 
-
 def hash_password(password: str) -> str:
     """Run hashlib.md5() algorithm 3 times."""
     encoded = password.strip()
@@ -368,10 +426,8 @@ def hash_password(password: str) -> str:
         encoded = md5(encoded.encode("ascii")).hexdigest()  # nosec
     return encoded
 
-
 def sort_dict(payload: dict) -> str:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True)
-
 
 def sign_msg(app_id: str, msg: str | dict, token: str = "") -> str:
     secret = getenv(app_id, APP_KEY.get(app_id, app_id))

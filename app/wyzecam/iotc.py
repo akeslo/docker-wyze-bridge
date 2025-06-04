@@ -8,8 +8,8 @@ import os
 import pathlib
 import time
 import warnings
-from ctypes import CDLL, c_int, c_ubyte, c_uint16, c_uint, c_uint32
-from typing import Iterator, Optional, Union
+from ctypes import CDLL, c_int, c_int8, c_ubyte, c_uint16, c_uint, c_uint32
+from typing import Iterator, Optional, Tuple, Union
 
 from wyzecam.api_models import WyzeAccount, WyzeCamera
 from wyzecam.tutk import tutk, tutk_ioctl_mux, tutk_protocol
@@ -90,6 +90,7 @@ class WyzeIOTC:
         self.initd = False
         self.udp_port = udp_port
         self.max_num_av_channels = max_num_av_channels
+        self.sdk_key = sdk_key
 
     def initialize(self):
         """Initialize the underlying TUTK library.
@@ -103,6 +104,7 @@ class WyzeIOTC:
             return
 
         self.initd = True
+
         err_no = tutk.iotc_initialize(self.tutk_platform_lib, udp_port=self.udp_port or c_uint16(0))
         if err_no < 0:
             raise tutk.TutkError(err_no)
@@ -130,7 +132,7 @@ class WyzeIOTC:
         self.initialize()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         self.deinitialize()
 
     def session(self, stream, state) -> "WyzeIOTCSession":
@@ -350,7 +352,7 @@ class WyzeIOTCSession:
         self._auth()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         self._disconnect()
 
     def check_native_rtsp(self, start_rtsp: bool = False) -> Optional[str]:
@@ -393,7 +395,9 @@ class WyzeIOTCSession:
         if len(decoded_url := resp.decode().split("rtsp://")) > 1:
             return f"rtsp://{decoded_url[1]}"
 
-    def recv_bridge_data(self) -> Iterator[bytes]:
+    def recv_bridge_data(self) -> Iterator[
+            Tuple[bytes, Union[tutk.FrameInfoStruct, tutk.FrameInfo3Struct]]
+        ]:
         """A generator for returning raw video frames for the bridge.
 
         Note that the format of this data is either raw h264 or HVEC H265 video. You will
@@ -428,10 +432,10 @@ class WyzeIOTCSession:
             if frame_info.is_keyframe:
                 have_key_frame = True
 
-            yield frame_data
+            yield frame_data, frame_info
 
         self.state = WyzeIOTCSessionState.CONNECTING_FAILED
-        return b""
+        return b"", None
 
     def _received_first_frame(self, have_key_frame: bool) -> bool:
         """Check if the first frame is received and update frame size."""
@@ -442,7 +446,7 @@ class WyzeIOTCSession:
             self.state = WyzeIOTCSessionState.CONNECTING_FAILED
             raise RuntimeError(f"Did not receive a frame for {int(delta)}s")
 
-        warnings.warn("Still waiting for first frame. Updating frame size.")
+        warnings.warn("[IOTC] Still waiting for first frame. Updating frame size.")
         self.update_frame_size_rate()
         return False
 
@@ -453,11 +457,11 @@ class WyzeIOTCSession:
         self.flush_pipe("audio")
         if not have_key_frame:
             warnings.warn(
-                f"Skipping wrong frame_size at start of stream [frame_size={frame_info.frame_size}]"
+                f"[IOTC] Skipping wrong frame_size at start of stream [{frame_info.frame_size=}]"
             )
             return True
 
-        warnings.warn(f"Wrong ({frame_info.frame_size=})")
+        warnings.warn(f"[IOTC] Wrong ({frame_info.frame_size=})")
         self.update_frame_size_rate()
         return True
 
@@ -471,7 +475,7 @@ class WyzeIOTCSession:
         gap = time.time() - self.frame_ts
 
         if gap > 5:
-            logger.warning("[VIDEO] super slow")
+            logger.warning(f"[VIDEO] super slow {gap=}")
             self.clear_buffer()
         if gap > 1:
             logger.debug(f"[VIDEO] slow {gap=}")
@@ -481,11 +485,15 @@ class WyzeIOTCSession:
 
     def _handle_frame_error(self, err_no: int) -> None:
         """Handle errors that occur when receiving frame data."""
-        time.sleep(1 / 80)
-        if err_no == tutk.AV_ER_DATA_NOREADY or err_no >= 0:
+        if  err_no >= 0:
             return
 
-        logger.warning(tutk.TutkError(err_no).name)
+        if err_no == tutk.AV_ER_DATA_NOREADY:
+            time.sleep(1.0 / 80)
+            return
+
+        logger.warning(f"[IOTC] {tutk.TutkError(err_no).name}")
+
         if err_no not in {tutk.AV_ER_INCOMPLETE_FRAME, tutk.AV_ER_LOSED_THIS_FRAME}:
             raise tutk.TutkError(err_no)
 
@@ -544,7 +552,7 @@ class WyzeIOTCSession:
 
     def clear_buffer(self) -> None:
         """Clear local buffer."""
-        warnings.warn("clear buffer")
+        warnings.warn("[IOTC] clear buffer")
         assert self.av_chan_id is not None, "Please call _connect() first!"
         self.sync_camera_time(True)
         tutk.av_client_clean_local_buf(self.tutk_platform_lib, self.av_chan_id)
@@ -753,9 +761,7 @@ class WyzeIOTCSession:
 
     def get_auth_key(self) -> str:
         """Generate authkey using enr and mac address."""
-        auth = str(self.camera.enr) + self.camera.mac.upper()
-        if self.camera.parent_dtls:
-            auth = str(self.camera.parent_enr) + str(self.camera.parent_mac).upper()
+        auth = str(self.camera.parent_enr) + str(self.camera.parent_mac).upper() if self.camera.parent_dtls else str(self.camera.enr) + self.camera.mac.upper()
         hashed_enr = hashlib.sha256(auth.encode("utf-8")).digest()
         return (
             base64.b64encode(hashed_enr[:6])
@@ -763,6 +769,7 @@ class WyzeIOTCSession:
             .replace("+", "Z")
             .replace("/", "9")
             .replace("=", "A")
+            #.encode() # https://github.com/kroo/wyzecam/compare/main...mrlt8:wyzecam:dev#diff-ed2b3d2defa5e765636d4536ebf34452e05bfec37377d62c71a9e58789e093dfR667
         )
 
     def _auth(self):
@@ -831,7 +838,9 @@ class WyzeIOTCSession:
         if self.av_chan_id is not None:
             tutk.av_send_io_ctrl_exit(self.tutk_platform_lib, self.av_chan_id)
             tutk.av_client_stop(self.tutk_platform_lib, self.av_chan_id)
+
         self.av_chan_id = None
+
         if self.session_id is not None:
             err_no = tutk.iotc_connect_stop_by_session_id(
                 self.tutk_platform_lib, self.session_id
@@ -840,6 +849,7 @@ class WyzeIOTCSession:
                 warning = Warning(tutk.TutkError(err_no), err_no)
                 warnings.warn(warning)
             tutk.iotc_session_close(self.tutk_platform_lib, self.session_id)
+
         self.session_id = None
         self.state = WyzeIOTCSessionState.DISCONNECTED
 
