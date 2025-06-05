@@ -51,8 +51,8 @@ def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> No
         base_payload = {
             "device": {
                 "name": f"Wyze Cam {cam.nickname}",
-                "connections": [["mac", cam.mac]],
-                "ip": cam.ip,
+                "connections": [["mac", cam.mac], ["ip", cam.ip]],
+                "configuration_url": "https://my.wyze.com/live",
                 "identifiers": cam.mac,
                 "manufacturer": "Wyze",
                 "model": cam.product_model,

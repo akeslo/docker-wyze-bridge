@@ -1,5 +1,25 @@
 # What's Changed
 
+## What's Changed in v3.10.13
+
+- Fix schema for MQTT discovery messages
+
+## What's Changed in v3.10.12
+
+- Filled out the missing translations and docs
+- Fix busted device configuration table (the device.json file had some XML in it)
+- Fix bad handling of WYZEDB3 message protocol support
+- Clean up wyzecam to adopt original upstream MAIN fixes
+- Sync with upstream wysecam DEV branch
+- Fix sleep when no data is ready (was waiting 0 seconds instead of the intended 1/80th of a second)
+- Yield frame_info in the receive data iterations.
+- Decode both FrameInfoStruct OR FrameInfo3Struct and whine if something is wrong.
+- Don't discard messages without an expected_response_code as we know what it's supposed to be anyway.
+- Proper type, use literals, better logging, eliminate dead code
+- Remove exit logging
+- Revert type of resend and remove redundant SDK license set
+- Add resp so debug structure are visible
+
 ## What's Changed in v3.10.11
 
 - Fix errors in startup avClientStartEx doesn't return a tuple
