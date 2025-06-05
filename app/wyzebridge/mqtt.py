@@ -343,7 +343,7 @@ def get_entities(base_topic: str, pan_cam: bool = False, rtsp: bool = False) -> 
                 "state_topic": f"{base_topic}bitrate",
                 "command_topic": f"{base_topic}bitrate/set",
                 "device_class": "data_rate",
-                "min": 1,
+                "min": 0,
                 "max": 1000,
                 "icon": "mdi:high-definition-box",
                 "entity_category": "diagnostic",
@@ -354,7 +354,7 @@ def get_entities(base_topic: str, pan_cam: bool = False, rtsp: bool = False) -> 
             "payload": {
                 "state_topic": f"{base_topic}fps",
                 "command_topic": f"{base_topic}fps/set",
-                "min": 1,
+                "min": 0,
                 "max": 30,
                 "icon": "mdi:filmstrip",
                 "entity_category": "diagnostic",

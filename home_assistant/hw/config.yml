@@ -94,7 +94,7 @@ schema:
   RECORD_LENGTH: str?
   RECORD_PATH: str?
   RECORD_FILE_NAME: str?
-  MQTT: bool
+  MQTT: bool?
   MQTT_HOST: str?
   MQTT_AUTH: str?
   MQTT_TOPIC: str?
@@ -108,6 +108,7 @@ schema:
   H264_ENC: str?
   FORCE_ENCODE: bool?
   IGNORE_OFFLINE: bool?
+  OFFLINE_TIME: int?
   FRESH_DATA: bool?
   URI_MAC: bool?
   URI_SEPARATOR: list(-|_|#)?
@@ -145,6 +146,7 @@ schema:
       MOTION_WEBHOOKS: str?
   MEDIAMTX:
     - match(^\w+=.*)?
+  DOMAIN: str?
   WB_HLS_URL: url?
   WB_RTMP_URL: url?
   WB_RTSP_URL: url?

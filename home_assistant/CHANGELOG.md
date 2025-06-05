@@ -1,5 +1,14 @@
 # What's Changed
 
+## What's Changed in v3.10.14
+
+- Made MQTT config value optional Fixes #39
+- Fix MQTT parameters minimum value for bitrate and fps
+- Don't emit MQTT state messages unless the state has changed
+- Fix warning in  BOA check
+- Add missing OFFLINE_TIME and DOMAIN options
+- Added documentation of the option defaults.
+
 ## What's Changed in v3.10.13
 
 - Fix schema for MQTT discovery messages
