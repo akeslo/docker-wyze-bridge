@@ -94,6 +94,7 @@ def check_boa_enabled(sess: WyzeIOTCSession, uri: str) -> Optional[dict]:
     if (
         session.mode != 2  # NOT connected in LAN mode
         or not (ip := session.remote_ip.decode("utf-8"))
+        or not sess.camera.camera_info
         or not (sd_parm := sess.camera.camera_info.get("sdParm"))
         or sd_parm.get("status") != "1"  # SD card is NOT available
         or "detail" in sd_parm  # Avoid weird SD card issue?
@@ -381,7 +382,7 @@ def parse_payload(payload: Any) -> list | dict:
 
 
 def motion_alarm(cam: dict):
-    """Check alam and trigger MQTT/http motion and return cooldown."""
+    """Check alarm and trigger MQTT/http motion and return cooldown."""
     pull_last_image(cam, "alarm")
     if motion := (cam["last_photo"][0] != cam["last_alarm"][0]):
         logger.info(f"[MOTION] Alarm file detected at {cam['last_photo'][1]}")

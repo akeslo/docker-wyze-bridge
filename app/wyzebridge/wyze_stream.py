@@ -123,8 +123,10 @@ class WyzeStream:
 
     @state.setter
     def state(self, value) -> None:
-        self._state.value = value.value if isinstance(value, StreamStatus) else value
-        update_mqtt_state(self.uri, self.status())
+        value = value.value if isinstance(value, StreamStatus) else value
+        if self._state.value != value:
+            self._state.value = value
+            update_mqtt_state(self.uri, self.status())
 
     @property
     def motion(self) -> bool:

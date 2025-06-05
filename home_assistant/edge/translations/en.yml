@@ -37,18 +37,24 @@ configuration:
     description: How long to retain snapshots (e.g. 10h for 10 hours, 5d for 5 days)
   IMG_TYPE:
     name: Shapshot Image Type
-    description: Should snapshots be saved as a JPG or PNG file
+    description: Should snapshots be saved as a JPG or PNG file. Defaults to JPG
   IMG_DIR:
     name: Snapshot Directory
-    description: Specify the base directory for the snapshots. Defaults to /media/wyze/img
+    description: Specify the base directory for the snapshots. Defaults to img (and will be at /media/wyze/img)
+  DOMAIN:
+    name: Stream Host Name
+    description: Specifies the hostname for the camera stream URLs. Defaults to the Home Assistant domain or localhost
   ENABLE_AUDIO:
     name: Enable Audio For All Cameras
   ON_DEMAND:
     name: Connect Cameras On Demand
-    description: If false, a persistent connection with the camera will be maintained, this sets the default for all cameras.
+    description: If false, a persistent connection with the camera will be maintained, this sets the default for all cameras. Defaults to true
   MOTION_API:
     name: Use Camera Motion
     description: If true, the camera motion events will be monitored, this sets the default for all cameras.
+  MOTION_INT:
+    name: Motion Check Interval
+    description: Number of seconds between motion checks. Defaults to 1.1 
   MOTION_START:
     name: Start Stream when Motion Detected
     description: If true, the camera stream will be automatically started when motion events occur
@@ -66,7 +72,7 @@ configuration:
     description: Requires audio codec to be set to AAC or MP3.
   LLHLS:
     name: Low Latency HLS
-    description: If enabled, creates HLS streams that have low-latency protocol active.
+    description: If enabled, creates HLS streams that have low-latency protocol active. If true, the HLS stream must be served via https not http
   DISABLE_CONTROL:
     name: Disable Control
     description: Disable camera control from the API/MQTT.
@@ -78,16 +84,16 @@ configuration:
     description: Uses MediaMTX to record camera streams, this sets the default for all cameras.
   RECORD_KEEP:
     name: Recording Retention
-    description: How long to retain snapshots (e.g. 10h for 10 hours, 5d for 5 days)
+    description: How long to retain snapshots (e.g. 10h for 10 hours, 5d for 5 days). Defaults to 0s (immediately discard)
   RECORD_LENGTH:
     name: Recording Length
-    description: How long each recording is before starting a new file
+    description: How long each recording is before starting a new file. Defaults to 60s
   RECORD_PATH:
     name: Recording Directory Pattern
-    description: The directory pattern for saved recordings. This defaults to /media/wyze/recordings
+    description: The directory pattern for saved recordings. This defaults to /media/wyze/recordings/{cam_name}/%Y/%m/%d
   RECORD_FILE_NAME:
     name: Recording File Name Pattern
-    description: The file name pattern for saved recordings. Use {cam_name} or {CAM_NAME} to insert the camera slug
+    description: The file name pattern for saved recordings. Use {cam_name} or {CAM_NAME} to insert the camera slug. Defaults to %Y-%m-%d-%H-%M-%S
   MQTT:
     name: Enable MQTT
     description: Enables MQTT messages advertising devices, events, and state (including motion events)
@@ -102,7 +108,7 @@ configuration:
     description: The topic where camera states and motion are announced. Defaults to wyzebridge
   MQTT_DTOPIC:
     name: MQTT Discovery Topic
-    description: The topic where discovery of cameras is announced
+    description: The topic where MQTT discovery messages for cameras is announced. If blank, no discovery messages are emitted
   MQTT_RETRIES:
     name: MQTT Retries
     description: How many attempts to publish messages. Defaults to 3
@@ -129,6 +135,9 @@ configuration:
     description: Ensure the streams are encoded in compatible format
   IGNORE_OFFLINE:
     name: Ignore Offline Camera
+  OFFLINE_TIME:
+    name: Cooldown for Offline
+    description: How long in seconds to wait between checks of an offline camera. Defaults to 10
   FRESH_DATA:
     name: Refresh API Camera
     description: Ignores local cache of cameras and grabs the list from the API
@@ -176,7 +185,7 @@ configuration:
     description: Enable http webserver on select cameras. *Req LAN and SD Card.
   BOA_INTERVAL:
     name: Boa Keep Alive
-    description: The number of seconds between photos/keep alive.
+    description: The number of seconds between photos/keep alive. Defaults to 20
   BOA_TAKE_PHOTO:
     name: Interval Photo
     description: Take a photo on the camera on Boa Keep Alive Interval.
@@ -191,13 +200,13 @@ configuration:
     description: Make a Webhook/HTTP request to any url. e.g., http://localhost/motion?cam={cam_name}
   BOA_COOLDOWN:
     name: Motion Cooldown
-    description: Number of seconds to keep the motion flag set to true before resetting it.
+    description: Number of seconds to keep the motion flag set to true before resetting it. Defaults to 20
   CAM_OPTIONS:
     name: Camera Specific Options
-    description: You can specify camera-specific setting for any camera by slut. You can override AUDIO, FFMPEG, LIVESTREAM, NET_MODE, ROTATE, QUALITY, SUB_QUALITY, FORCE_FPS, RECORD, SUB_RECORD, SUBSTREAM, and MOTION_WEBHOOKS
+    description: Specifies camera-specific setting for any camera by slug. See documentation for details
   MEDIAMTX:
     name: MediaMTX config
-    description: Use `=` to specify the value and use `_` in place of spaces. For example MTX_LOGLEVEL
+    description: Use `=` to specify the value and use `_` in place of spaces. For example MTX_LOGLEVEL. See documentation for details
   WB_HLS_URL:
     name: Custom HLS url
   WB_RTMP_URL:
@@ -208,7 +217,7 @@ configuration:
     name: Custom WebRTC url
   WB_AUTH:
     name: Must Login to WebUI
-    description: Enable authentication for WebUI. If true, you must login using the WebUI Username and Password
+    description: Enable authentication for WebUI. If true, you must login using the WebUI Username and Password. Defaults to true
   WB_USERNAME:
     name: WebUI Username
     description: Ignored if WebUI Authentication is disabled 
