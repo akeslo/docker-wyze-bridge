@@ -1,5 +1,19 @@
 # What's Changed
 
+## What's Changed in v3.11.1
+
+Turns out you cannot have a completely optional section in a config.yml
+
+Use something like
+
+```yaml
+CAM_OPTIONS:
+  - CAM_NAME: fake-camera-name
+    RECORD: false
+```
+
+- Revert CAM_OPTIONS and MEDIAMTX yaml schema and add default values to configs
+
 ## What's Changed in v3.11.0
 
 Cleanup of authorization logic and adding background activity

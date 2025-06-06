@@ -3,7 +3,7 @@ description: WebRTC/RTSP/RTMP/LL-HLS bridge for Wyze cams in a docker container.
 slug: docker_wyze_bridge
 url: https://github.com/idisposable/docker-wyze-bridge
 image: idisposablegithub365/wyze-bridge
-version: 3.11.0
+version: 3.11.1
 stage: stable
 arch:
   - armv7
@@ -65,6 +65,11 @@ options:
   ENABLE_AUDIO: true
   ON_DEMAND: true
   MOTION_API: true
+  CAM_OPTIONS:
+    - CAM_NAME: some-camera-name
+      RECORD: true
+  MEDIAMTX:
+    MTX_LOGLEVEL=warn
 schema:
   WYZE_EMAIL: email?
   WYZE_PASSWORD: password?
@@ -133,7 +138,7 @@ schema:
   BOA_ALARM: bool?
   BOA_MOTION: str?
   BOA_COOLDOWN: int?
-  CAM_OPTIONS?:
+  CAM_OPTIONS:
     - CAM_NAME: str?
       AUDIO: bool?
       FFMPEG: str?
@@ -147,7 +152,7 @@ schema:
       SUB_RECORD: bool?
       SUBSTREAM: bool?
       MOTION_WEBHOOKS: str?
-  MEDIAMTX?:
+  MEDIAMTX:
     - match(^\w+=.*)?
   DOMAIN: str?
   WB_HLS_URL: url?
