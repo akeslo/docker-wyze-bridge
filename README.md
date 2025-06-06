@@ -55,6 +55,20 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.11.1
+
+Turns out you cannot have a completely optional section in a config.yml
+
+Use something like
+
+```yaml
+CAM_OPTIONS:
+  - CAM_NAME: fake-camera-name
+    RECORD: false
+```
+
+- Revert CAM_OPTIONS and MEDIAMTX yaml schema and add default values to configs
+
 ## What's Changed in v3.11.0
 
 Cleanup of authorization logic and adding background activity
