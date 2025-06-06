@@ -22,7 +22,7 @@ class WyzeBridge(Thread):
             signal.signal(getattr(signal, sig), self.clean_up)
         print(f"\n🚀 DOCKER-WYZE-BRIDGE v{config.VERSION} {config.BUILD_STR}\n")
         self.api: WyzeApi = WyzeApi()
-        self.streams: StreamManager = StreamManager()
+        self.streams: StreamManager = StreamManager(self.api)
         self.mtx: MtxServer = MtxServer()
         self.mtx.setup_webrtc(config.BRIDGE_IP)
         if config.LLHLS:
@@ -44,6 +44,10 @@ class WyzeBridge(Thread):
         self.setup_streams()
         if self.streams.total < 1:
             return signal.raise_signal(signal.SIGINT)
+        
+        if logger.getEffectiveLevel() == 10: #if we're at debug level
+            logger.debug(f"[BRIDGE] MTX config:\n{self.mtx.dump_config()}")
+            
         self.mtx.start()
         self.streams.monitor_streams(self.mtx.health_check)
 
@@ -64,9 +68,6 @@ class WyzeBridge(Thread):
 
         for cam in self.api.filtered_cams():
             logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}] at {cam.name_uri}")
-
-            if config.SNAPSHOT_TYPE == "api":
-                self.api.save_thumbnail(cam.name_uri, "") # let it run in background
 
             options = WyzeStreamOptions(
                 quality=env_cam("quality", cam.name_uri),
@@ -89,7 +90,7 @@ class WyzeBridge(Thread):
         if rtsp_fw := env_bool("rtsp_fw").lower():
             if rtsp_path := stream.check_rtsp_fw(rtsp_fw == "force"):
                 rtsp_uri = f"{cam.name_uri}-fw"
-                logger.info(f"Adding /{rtsp_uri} as a source")
+                logger.info(f"[-->] Adding /{rtsp_uri} as a source")
                 self.mtx.add_source(rtsp_uri, rtsp_path)
                 return True
         return False

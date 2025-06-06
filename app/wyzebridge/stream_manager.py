@@ -5,6 +5,7 @@ from subprocess import Popen, TimeoutExpired
 from threading import Thread
 from typing import  Callable, Optional
 
+from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.stream import Stream
 from wyzebridge.config import MOTION, MQTT_DISCOVERY, SNAPSHOT_INT, SNAPSHOT_TYPE
 from wyzebridge.ffmpeg import rtsp_snap_cmd
@@ -14,9 +15,10 @@ from wyzebridge.mtx_event import RtspEvent
 from wyzebridge.wyze_events import WyzeEvents
 
 class StreamManager:
-    __slots__ = "stop_flag", "streams", "rtsp_snapshots", "last_snap", "thread"
+    __slots__ = "api", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "thread"
 
-    def __init__(self):
+    def __init__(self, api: WyzeApi):
+        self.api: WyzeApi = api
         self.stop_flag: bool = False
         self.streams: dict[str, Stream] = {}
         self.rtsp_snapshots: dict[str, Popen] = {}
@@ -61,7 +63,7 @@ class StreamManager:
 
         if MQTT_DISCOVERY:
             self.thread = Thread(target=self.monitor_snapshots)
-            self.thread.daemon = True # allow this thread to be aban
+            self.thread.daemon = True # allow this thread to be abandoned
             self.thread.start()
 
         mqtt = cam_control(self.streams, self.send_cmd)
@@ -87,6 +89,7 @@ class StreamManager:
     def monitor_snapshots(self) -> None:
         for cam in self.streams:
             update_preview(cam)
+
         while not self.stop_flag:
             for cam, ffmpeg in list(self.rtsp_snapshots.items()):
                 if ffmpeg is not None and (returncode := ffmpeg.returncode) is not None:
@@ -125,11 +128,14 @@ class StreamManager:
         if force or self._should_snap():
             self.last_snap = time.time()
             for cam in cams or self.active_streams():
-                stop_subprocess(self.rtsp_snapshots.get(cam))
-                self.rtsp_snap_popen(cam, True)
+                if SNAPSHOT_TYPE == "rtsp":
+                    stop_subprocess(self.rtsp_snapshots.get(cam))
+                    self.rtsp_snap_popen(cam, True)
+                elif SNAPSHOT_TYPE == "api":
+                    self.api.save_thumbnail(cam, "")
 
     def _should_snap(self):
-        return SNAPSHOT_TYPE == "rtsp" and time.time() - self.last_snap >= SNAPSHOT_INT
+        return SNAPSHOT_TYPE in ["rtsp", "api"] and time.time() - self.last_snap >= SNAPSHOT_INT
 
     def get_sse_status(self) -> dict:
         return {
@@ -166,10 +172,11 @@ class StreamManager:
                 status = json.dumps(status)
 
             if "update_snapshot" in cam_resp:
-                on_demand = not stream.connected
+                demanded = not stream.connected
                 snap = self.get_rtsp_snap(cam_name)
-                if on_demand:
+                if demanded:
                     stream.stop()
+
                 publish_topic(f"{cam_name}/{cmd}", int(time.time()) if snap else 0)
                 return dict(resp, status="success", value=snap, response=snap)
 

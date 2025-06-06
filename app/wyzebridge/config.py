@@ -28,7 +28,7 @@ CONNECT_TIMEOUT: int = env_bool("CONNECT_TIMEOUT", "20", style="int")
 
 # TODO: change TOKEN_PATH  to /config for all:
 TOKEN_PATH: str = "/config/" if HASS_TOKEN else "/tokens/"
-IMG_PATH: str = f'/{env_bool("IMG_DIR", "img").strip("/")}/'
+IMG_PATH: str = f'/{env_bool("IMG_DIR", r"/media/wyze/img").strip("/")}/'
 
 SNAPSHOT_TYPE, SNAPSHOT_INT = split_int_str(env_bool("SNAPSHOT"), min=15, default=180)
 SNAPSHOT_FORMAT: str = env_bool("SNAPSHOT_FORMAT", style="original").strip("/")
@@ -51,11 +51,15 @@ MOTION_START: bool = env_bool("motion_start", style="bool")
 WB_AUTH: bool = bool(env_bool("WB_AUTH") if getenv("WB_AUTH") else True)
 STREAM_AUTH: str = env_bool("STREAM_AUTH", style="original")
 
-RECORD_PATH: str = env_bool("RECORD_PATH", r"{cam_name}/%Y/%m/%d", style="original").strip("/")
+RECORD_PATH: str = env_bool("RECORD_PATH", r"/media/wyze/recordings/{cam_name}/%Y/%m/%d", style="original").strip("/")
 RECORD_FILE: str = env_bool("RECORD_FILE_NAME", r"%Y-%m-%d-%H-%M-%S", style="original").strip("/")
 RECORD_LENGTH: str = env_bool("RECORD_LENGTH", "60s")
 RECORD_KEEP: str = env_bool("RECORD_KEEP", "0s")
 RECORD_PATTERN: str = f"/{RECORD_PATH}/{RECORD_FILE}".removesuffix(".mp4").removesuffix(".fmp4").removesuffix(".ts")
+
+MTX_READTIMEOUT: str = env_bool("MTX_READTIMEOUT", "30s", style="original")
+MTX_HLSVARIANT: str = env_bool("MTX_HLSVARIANT", "mpegts", style="original")
+MTX_WRITEQUEUESIZE: int = env_bool("MTX_WRITEQUEUESIZE", "2048", style="int")
 
 STUN_SERVER: str = env_bool("STUN_SERVER", "", style="original")
 

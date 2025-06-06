@@ -69,6 +69,36 @@ CAM_OPTIONS:
 
 - Revert CAM_OPTIONS and MEDIAMTX yaml schema and add default values to configs
 
+# What's Changed in v3.12.0
+
+Cleaned up the startup logic to ensure things start quickly and moved configurations around so everything is overrideable
+
+- Moved API-driven snapshots into the `Stream_Manager.py` so they don't delay startup.
+- Clean up the /var/log directory in Dockerfile build image
+- Better to supply empty, not samples in config
+- Switch to `run` for diagnostic dump
+- Deprecate the `config.yml` setting of environment variables so we can set the `IMG_DIR` and `RECORD_PATH` reliably even
+  if not running inside Home Assistant as an add-on
+- Remove the MTX_* variables from the `.env` as we want them to be settable in the options.
+- Explicitly default the MTX settings that used to be forced (MTX_READTIMEOUT=30s, MTX_HLSVARIANT=mpegts, MTX_WRITEQUEUESIZE=2048) 
+  to ensure backward compatibility
+- Updated the defaults for the `IMG_DIR` and `RECORD_PATH` to match what the `.env` would have 
+  previously set, but now it's overridable.
+- Reduced log spam by making some `.info(` calls `.debug(`
+- Don't emit ffmpeg non-error messages  (let the Popen eat them).
+
+## What's Changed in v3.11.1
+
+Turns out you cannot have a completely optional section in a config.yml
+
+Use something like
+
+```yaml
+CAM_OPTIONS:
+  - CAM_NAME: fake-camera-name
+    RECORD: false
+```
+
 ## What's Changed in v3.11.0
 
 Cleanup of authorization logic and adding background activity
