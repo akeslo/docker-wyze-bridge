@@ -12,7 +12,8 @@ from wyzebridge import config
 from wyzebridge.auth import WbAuth
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
-from wyzebridge.stream import Stream, StreamManager
+from wyzebridge.stream import Stream
+from wyzebridge.stream_manager import StreamManager
 
 auth = HTTPBasicAuth()
 

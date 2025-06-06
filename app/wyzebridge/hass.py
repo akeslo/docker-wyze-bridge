@@ -26,7 +26,7 @@ def setup_hass(hass_token: Optional[str]) -> None:
             if i["primary"]:
                 environ["WB_IP"] = i["ipv4"]["address"][0].split("/")[0]
     except Exception as ex:
-        logger.error(f"WEBRTC SETUP: [{type(ex).__name__}] {ex}")
+        logger.error(f"[HASS] WebRTC setup: [{type(ex).__name__}] {ex}")
 
     mqtt_conf = requests.get("http://supervisor/services/mqtt", headers=auth).json()
     if "ok" in mqtt_conf.get("result") and (data := mqtt_conf.get("data")):
@@ -75,7 +75,7 @@ def setup_hass(hass_token: Optional[str]) -> None:
         environ.update({k.replace(" ", "_").upper(): str(v)})
 
     if not conf.get("MQTT"):
-        logger.warning("MQTT IS DISABLED")
+        logger.warning("[HASS] MQTT is disabled")
         environ.pop("MQTT_HOST", None)
 
     log_level = conf.get("LOG_LEVEL", "")
@@ -88,6 +88,6 @@ def setup_hass(hass_token: Optional[str]) -> None:
     if conf.get("LOG_FILE"):
         log_path = "/config/logs/"
         log_file = f"{log_path}wyze-bridge.log"
-        logger.info(f"Logging to file: {log_file}")
+        logger.info(f"[HASS] Logging to file: {log_file}")
         makedirs(log_path, exist_ok=True)
         format_logging(logging.FileHandler(log_file), logging.DEBUG, "%Y/%m/%d %X")

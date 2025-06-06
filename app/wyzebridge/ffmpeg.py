@@ -2,12 +2,12 @@ import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+import threading
 from typing import Optional
 
 from wyzebridge.bridge_utils import LIVESTREAM_PLATFORMS, env_bool, env_cam
 from wyzebridge.config import IMG_PATH, SNAPSHOT_FORMAT
 from wyzebridge.logging import logger
-
 
 def get_ffmpeg_cmd(
     uri: str, vcodec: str, audio: dict, is_vertical: bool = False
@@ -36,23 +36,30 @@ def get_ffmpeg_cmd(
     audio_in = "-f lavfi -i anullsrc=cl=mono" if livestream else ""
     audio_out = "aac"
     thread_queue = "-thread_queue_size 8 -analyzeduration 32 -probesize 32"
+
     if audio and "codec" in audio:
         # `Option sample_rate not found.` if we try to specify -ar for aac:
         rate = "" if audio["codec"] == "aac" else f" -ar {audio['rate']} -ac 1"
         audio_in = f"{thread_queue} -f {audio['codec']}{rate} -i /tmp/{uri}_audio.pipe"
         audio_out = audio["codec_out"] or "copy"
+
     a_filter = env_bool("AUDIO_FILTER", "volume=5") + ",adelay=0|0"
     a_options = ["-filter:a", a_filter]
+
     if audio_out.lower() == "libopus":
         a_options += ["-compression_level", "4", "-frame_duration", "10"]
+
     if audio_out.lower() not in {"libopus", "aac"}:
         a_options += ["-ar", "8000"]
+
     rtsp_transport = "udp" if "udp" in env_bool("MTX_RTSPTRANSPORTS") else "tcp"
     fio_cmd = r"use_fifo=1:fifo_options=attempt_recovery=1\\\:drop_pkts_on_overflow=1:"
     rss_cmd = f"[{fio_cmd}{{}}f=rtsp:{rtsp_transport=:}]rtsp://0.0.0.0:8554/{uri}"
     rtsp_ss = rss_cmd.format("")
+
     if env_cam("AUDIO_STREAM", uri, style="original") and audio:
         rtsp_ss += "|" + rss_cmd.format("select=a:") + "_audio"
+
     h264_enc = env_bool("h264_enc").partition("_")[2]
     level = get_log_level()
 
@@ -79,10 +86,9 @@ def get_ffmpeg_cmd(
         cmd.insert(0, "ffmpeg")
 
     if level in {"info", "verbose", "debug"}:
-        logger.info(f"[FFMPEG_CMD] {' '.join(cmd)}")
+        logger.info(f"[FFMPEG] Stream command: {' '.join(cmd)}")
 
     return cmd
-
 
 def get_log_level():
     level = env_bool("FFMPEG_LOGLEVEL", "fatal").lower()
@@ -99,8 +105,7 @@ def get_log_level():
     }:
         return level
 
-    return "verbose"
-
+    return "warning"
 
 def re_encode_video(uri: str, is_vertical: bool) -> list[str]:
     """
@@ -150,7 +155,9 @@ def re_encode_video(uri: str, is_vertical: bool) -> list[str]:
             f"{v_filter[1]},{custom_filter}" if v_filter else custom_filter,
         ]
 
-    return (
+    level = get_log_level()
+
+    cmd = (
         [h264_enc]
         + v_filter
         + (["-filter_complex", filter_complex, "-map", "[v]"] if filter_complex else [])
@@ -160,6 +167,10 @@ def re_encode_video(uri: str, is_vertical: bool) -> list[str]:
         + ["-forced-idr", "1", "-force_key_frames", "expr:gte(t,n_forced*2)"]
     )
 
+    if level in {"info", "verbose", "debug"}:
+        logger.debug(f"[FFMPEG] Re-encode command: {' '.join(cmd)}")
+
+    return cmd
 
 def get_livestream_cmd(uri: str) -> str:
     flv = r"|[f=flv:flvflags=no_duration_filesize:use_fifo=1:fifo_options=attempt_recovery=1\\\:drop_pkts_on_overflow=1:onfail=abort]"
@@ -172,37 +183,44 @@ def get_livestream_cmd(uri: str) -> str:
 
     return ""
 
+def purge_old(base_path: str, extension: str, keep_time: timedelta):
+    def wrapped():
+        try:
+            threshold = datetime.now() - keep_time
+            parents = set()
 
-def purge_old(base_path: str, extension: str, keep_time: Optional[timedelta]):
-    if not keep_time:
-        return
-    threshold = datetime.now() - keep_time
-    parents = set()
+            try:
+                for file_path in Path(base_path).rglob(f"*{extension}"):
+                    modify_time = file_modified(file_path)
 
-    try:
-        for file_path in Path(base_path).rglob(f"*{extension}"):
-            modify_time = file_modified(file_path)
+                    if modify_time > threshold.timestamp():
+                        continue
 
-            if modify_time > threshold.timestamp():
-                continue
+                    if file_unlink(file_path):
+                        parents.add(file_path.parent)
 
-            if file_unlink(file_path):
-                parents.add(file_path.parent)
+                while len(parents) > 0:
+                    parent = parents.pop()
+                    directory_remove_if_empty(parent)
+            except OSError as e:
+                logger.error(f"[FFMPEG] Error accessing {base_path}/*{extension}: {e}")
+            except RecursionError as e:
+                logger.error(f"[FFMPEG] Recursion error while accessing {base_path}/*{extension}: {e}")
+        except Exception as e:
+            logger.error(f"[FFMPEG] Unexpected error in purge_old: {e}")
 
-        while len(parents) > 0:
-            parent = parents.pop()
-            directory_remove_if_empty(parent)
-    except (OSError) as e:
-        logger.debug(f"Error accessing {base_path}/*{extension}: {e}")
-    except RecursionError as e:
-        logger.debug(f"Recursion error while accessing {base_path}/*{extension}: {e}")
+    thread = threading.Thread(target=wrapped)
+    thread.daemon = True  # Set thread as daemon
+    thread.start()
 
 def file_modified(file_path: Path) -> float:
     try:
         file_stat = os.stat(file_path)
         return file_stat.st_mtime
-    except (OSError) as e:
-        logger.debug(f"Error stat {file_path}: {e}")
+    except FileNotFoundError:
+        pass # ignore these, someone deleted the file out from under us
+    except OSError as e:
+        logger.error(f"[FFMPEG] Error stat {file_path}: {e}")
 
     # if an Exception occurs, we return the current time, which will never qualify for deletion
     return datetime.now().timestamp()
@@ -210,10 +228,12 @@ def file_modified(file_path: Path) -> float:
 def file_unlink(file_path: Path) -> bool:
     try:
         file_path.unlink(missing_ok=True)
-        logger.debug(f"[ffmpeg] Deleted: {file_path}")
+        logger.debug(f"[FFMPEG] Deleted: {file_path}")
         return True
-    except (OSError) as e:
-        logger.debug(f"Error unlink {file_path}: {e}")
+    except FileNotFoundError:
+        pass # ignore these, someone deleted the file out from under us
+    except OSError as e:
+        logger.error(f"[FFMPEG] Error unlink {file_path}: {e}")
 
     return False
 
@@ -221,10 +241,12 @@ def directory_remove_if_empty(directory: Path) -> bool:
     try:
         if not any(directory.iterdir()):
             shutil.rmtree(directory, ignore_errors=True)
-            logger.debug(f"[ffmpeg] Deleted empty directory: {directory}")
+            logger.debug(f"[FFMPEG] Deleted empty directory: {directory}")
             return True
-    except (OSError) as e:
-        logger.debug(f"Error rmtree {directory}: {e}")
+    except FileNotFoundError:
+        pass # ignore these, someone deleted the directory out from under us
+    except OSError as e:
+        logger.error(f"[FFMPEG] Error rmtree {directory}: {e}")
     return False
 
 def parse_timedelta(env_key: str) -> Optional[timedelta]:
@@ -257,24 +279,24 @@ def rtsp_snap_cmd(cam_name: str, interval: bool = False):
 
     keep_time = parse_timedelta("SNAPSHOT_KEEP")
     if keep_time and SNAPSHOT_FORMAT:
-        purge_old(IMG_PATH, ext, keep_time)
+        purge_old(IMG_PATH + cam_name, ext, keep_time)
 
     rotation = []
     if rotate_img := env_bool(f"ROTATE_IMG_{cam_name}"):
         transpose = rotate_img if rotate_img in {"0", "1", "2", "3"} else "clock"
         rotation = ["-filter:v", f"{transpose=}"]
-        
-   # rtsp_transport = "udp" if "udp" in env_bool("MTX_RTSPTRANSPORTS") else "tcp"
-    
+
+    rtsp_transport = "udp" if "udp" in env_bool("MTX_RTSPTRANSPORTS") else "tcp"
+
     cmd = (
         ["ffmpeg", "-loglevel", "error", "-analyzeduration", "0", "-probesize", "32"]
-        + ["-f", "rtsp", "-rtsp_transport", "tcp", "-thread_queue_size", "500"]
+        + ["-f", "rtsp", "-rtsp_transport", rtsp_transport, "-thread_queue_size", "500"]
         + ["-i", f"rtsp://0.0.0.0:8554/{cam_name}", "-map", "0:v:0"]
         + rotation
         + ["-f", "image2", "-frames:v", "1", "-y", img]
     )
 
     if get_log_level() in {"info", "verbose", "debug"}:
-        logger.info(f"[SNAPSHOT_CMD] {' '.join(cmd)}")
+        logger.info(f"[FFMPEG] Snapshot command: {' '.join(cmd)}")
 
     return cmd
