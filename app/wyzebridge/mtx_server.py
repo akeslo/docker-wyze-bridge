@@ -6,7 +6,7 @@ from subprocess import Popen
 from typing import Optional
 
 import yaml
-from wyzebridge.config import RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER
+from wyzebridge.config import MTX_HLSVARIANT, MTX_READTIMEOUT, MTX_WRITEQUEUESIZE, RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
 
@@ -21,22 +21,25 @@ class MtxInterface:
         self._modified = False
 
     def __enter__(self):
-        self._load_config()
+        self.load_config()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if self._modified:
-            self._save_config()
+        self.save_config()
 
-    def _load_config(self):
-        logger.info(f"[MTX] Reading config from {MTX_CONFIG=}")
+    def load_config(self):
+        logger.debug(f"[MTX] Reading config from {MTX_CONFIG=}")
         with open(MTX_CONFIG, "r") as f:
             self.data = yaml.safe_load(f) or {}
 
-    def _save_config(self):
-        logger.info(f"[MTX] Writing config to {MTX_CONFIG=}")
-        with open(MTX_CONFIG, "w") as f:
-            yaml.safe_dump(self.data, f, sort_keys=False)
+    def save_config(self):
+        if self._modified:
+            logger.debug(f"[MTX] Writing config to {MTX_CONFIG=}")
+            with open(MTX_CONFIG, "w") as f:
+                yaml.safe_dump(self.data, f, sort_keys=False)
+
+    def dump_to_yaml(self) -> str:
+        return yaml.safe_dump(self.data, sort_keys=False)
 
     def get(self, path: str):
         keys = path.split(".")
@@ -72,10 +75,10 @@ class MtxServer:
 
     def __init__(self) -> None:
         self.sub_process: Optional[Popen] = None
-        self._setup_path_defaults()
+        self.setup_path_defaults()
 
-    def _setup_path_defaults(self):
-        logger.info(f"[MTX] setting up default {RECORD_PATTERN=}")
+    def setup_path_defaults(self):
+        logger.info(f"[MTX] Setting up default {RECORD_PATTERN=}")
         record_path = ensure_record_path().format(cam_name=MTX_PATH, CAM_NAME=MTX_PATH)
 
         with MtxInterface() as mtx:
@@ -89,9 +92,16 @@ class MtxServer:
             mtx.set("pathDefaults.recordSegmentDuration", RECORD_LENGTH)
             mtx.set("pathDefaults.recordDeleteAfter", RECORD_KEEP)
             
+            # explicitly defaults these because we used to force them in the config.yml enviroment
+            mtx.set("hlsVariant", MTX_HLSVARIANT)
+            mtx.set("readTimeout", MTX_READTIMEOUT)
+            mtx.set("writeQueueSize", MTX_WRITEQUEUESIZE)
+
             if STUN_SERVER != "":
                 logger.info(f"[MTX] enabling STUN server at: {STUN_SERVER}")
                 mtx.set("webrtcICEServers2", [{"url": f"{STUN_SERVER}"}])
+
+            mtx.save_config()
 
     def setup_auth(self, api: Optional[str], stream: Optional[str]):
         administrator: dict = {
@@ -127,6 +137,8 @@ class MtxServer:
                 for client in parse_auth(stream):
                     mtx.add("authInternalUsers", client)
 
+            mtx.save_config()
+
     def add_path(self, uri: str, on_demand: bool = True):
         with MtxInterface() as mtx:
             if on_demand:
@@ -136,9 +148,13 @@ class MtxServer:
             else:
                 mtx.set(f"paths.{uri}", {})
 
+            mtx.save_config()
+
     def add_source(self, uri: str, value: str):
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.source", value)
+
+        mtx.save_config()
 
     def record(self, uri: str):
         logger.info(f"[MTX] Starting record for {uri}")
@@ -154,6 +170,11 @@ class MtxServer:
         with MtxInterface() as mtx:
             mtx.set(f"paths.{uri}.record", True)
             mtx.set(f"paths.{uri}.recordPath", record_path)
+            mtx.save_config()
+
+    def dump_config(self) -> str:
+        with MtxInterface() as mtx:
+            return mtx.dump_to_yaml()
 
     def start(self) -> bool:
         if not self.sub_process_alive():
@@ -190,22 +211,24 @@ class MtxServer:
             return
         ips = bridge_ip.split(",")
         logger.debug(f"Using {' and '.join(ips)} for webrtc")
+
         with MtxInterface() as mtx:
             mtx.add("webrtcAdditionalHosts", ips)
+            mtx.save_config()
 
     def setup_llhls(self, token_path: str = "/tokens/", hass: bool = False):
         logger.info("[MTX] Configuring LL-HLS")
         with MtxInterface() as mtx:
             mtx.set("hlsVariant", "lowLatency")
             mtx.set("hlsEncryption", True)
-            if env_bool("mtx_hlsServerKey"):
+            if env_bool("MTX_HLSSERVERKEY"):
                 return
 
             key = "/ssl/privkey.pem"
             cert = "/ssl/fullchain.pem"
             if hass and Path(key).is_file() and Path(cert).is_file():
                 logger.info(
-                    "[MTX] 🔐 Using existing SSL certificate from Home Assistant"
+                    f"[MTX] 🔐 Using existing SSL certificate from Home Assistant {key=} {cert=}"
                 )
                 mtx.set("hlsServerKey", key)
                 mtx.set("hlsServerCert", cert)
@@ -215,6 +238,7 @@ class MtxServer:
             generate_certificates(cert_path)
             mtx.set("hlsServerKey", f"{cert_path}.key")
             mtx.set("hlsServerCert", f"{cert_path}.crt")
+            mtx.save_config()
 
 def ensure_record_path() -> str:
     record_path = RECORD_PATTERN

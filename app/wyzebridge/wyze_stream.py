@@ -438,7 +438,7 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
             ffmpeg_cmd = get_ffmpeg_cmd(uri, v_codec, audio, stream.camera.is_vertical)
             assert state.value >= StreamStatus.CONNECTING, "Stream Stopped"
             state.value = StreamStatus.CONNECTED
-            with Popen(ffmpeg_cmd, stdin=PIPE, stdout=None, stderr=None) as ffmpeg:
+            with Popen(ffmpeg_cmd, stdin=PIPE, stderr=None) as ffmpeg:
                 if ffmpeg.stdin is not None:
                     for frame, _ in sess.recv_bridge_data():
                         ffmpeg.stdin.write(frame)
@@ -456,10 +456,10 @@ def start_tutk_stream(uri: str, stream: StreamTuple, queue: QueueTuple, state: c
             logger.warning("⏰ Expired ENR?")
             exit_code = -19 # IOTC_ER_CAN_NOT_FIND_DEVICE
     except BrokenPipeError:
-        logger.info("𓁈✋ [TUTK] FFMPEG stopped")
+        logger.warning("𓁈✋ [TUTK] FFMPEG stopped")
     except Exception as ex:
         trace = traceback.format_exc() if isDebugEnabled(logger) else ""
-        logger.warning(f"𓁈‼️ [TUTK] Exception: [{type(ex).__name__}] {ex} {trace}")
+        logger.error(f"𓁈‼️ [TUTK] Exception: [{type(ex).__name__}] {ex} {trace}")
     else:
         logger.warning("𓁈🛑 [TUTK] Stream stopped")
     finally:
