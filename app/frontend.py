@@ -75,22 +75,28 @@ def create_app():
     def index():
         if not (columns := request.args.get("columns")):
             columns = request.cookies.get("number_of_columns", "2")
+
         if not (refresh := request.args.get("refresh")):
             refresh = request.cookies.get("refresh_period", "30")
+
         number_of_columns = int(columns) if columns.isdigit() else 0
         refresh_period = int(refresh) if refresh.isdigit() else 0
         show_video = bool(request.cookies.get("show_video"))
         autoplay = bool(request.cookies.get("autoplay"))
+    
         if "autoplay" in request.args:
             autoplay = True
+    
         if "video" in request.args:
             show_video = True
         elif "snapshot" in request.args:
             show_video = False
 
         video_format = request.cookies.get("video", "webrtc")
+
         if req_video := ({"webrtc", "hls", "kvs"} & set(request.args)):
             video_format = req_video.pop()
+
         resp = make_response(
             render_template(
                 "index.html",
@@ -186,6 +192,7 @@ def create_app():
         """Use ffmpeg to take a snapshot from the rtsp stream."""
         if wb.streams.get_rtsp_snap(Path(img_file).stem):
             return send_from_directory(config.IMG_PATH, img_file)
+
         return thumbnail(img_file)
 
     @app.route("/img/<string:img_file>")
@@ -208,8 +215,9 @@ def create_app():
     @app.route("/thumb/<string:img_file>")
     @auth_required
     def thumbnail(img_file: str):
-        if wb.api.save_thumbnail(Path(img_file).stem):
+        if wb.api.save_thumbnail(Path(img_file).stem, ""):
             return send_from_directory(config.IMG_PATH, img_file)
+
         return redirect("/static/notavailable.svg", code=307)
 
     @app.route("/photo/<string:img_file>")
@@ -261,7 +269,6 @@ def create_app():
         return resp
 
     return app
-
 
 if __name__ == "__main__":
     app = create_app()

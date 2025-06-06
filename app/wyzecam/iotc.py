@@ -8,7 +8,7 @@ import os
 import pathlib
 import time
 import warnings
-from ctypes import CDLL, c_int, c_int8, c_ubyte, c_uint16, c_uint, c_uint32
+from ctypes import CDLL, c_int, c_ubyte, c_uint16, c_uint, c_uint32
 from typing import Iterator, Optional, Tuple, Union
 
 from wyzecam.api_models import WyzeAccount, WyzeCamera
@@ -247,7 +247,7 @@ class WyzeIOTCSession:
         frame_size: int = tutk.FRAME_SIZE_1080P,
         bitrate: int = tutk.BITRATE_HD,
         enable_audio: bool = True,
-        connect_timeout: int = 20,
+        connect_timeout: int = 60,
         stream_state: c_int = c_int(0),
         substream: bool = False,
     ) -> None:
@@ -288,13 +288,13 @@ class WyzeIOTCSession:
 
     @property
     def sleep_interval(self) -> float:
-        if os.getenv("LOW_LATENCY"):  # May cause CPU to spike
+        if os.getenv("LLHLS"):  # May cause CPU to spike
             return 0
 
         if not self.frame_ts:
-            return 1 / 100
+            return 1.0 / 100
 
-        fps = 1 / self.preferred_frame_rate * 0.95
+        fps = 1.0 / self.preferred_frame_rate * 0.95
         delta = max(time.time() - self.frame_ts, 0.0)
         if self._sleep_buffer:
             delta += self._sleep_buffer
@@ -314,9 +314,7 @@ class WyzeIOTCSession:
 
         :returns: A [`tutk.SInfoStruct`][wyzecam.tutk.tutk.SInfoStruct]
         """
-        assert (
-            self.session_id is not None
-        ), "Please call _connect() before session_check()"
+        assert self.session_id is not None, "Please call _connect() before session_check()"
 
         errcode, sess_info = tutk.iotc_session_check(
             self.tutk_platform_lib, self.session_id
@@ -344,7 +342,7 @@ class WyzeIOTCSession:
         ```
 
         """
-        assert self.av_chan_id is not None, "Please call _connect() first!"
+        assert self.av_chan_id is not None, "Please call _connect() before iotctrl_mux()!"
         return TutkIOCtrlMux(self.tutk_platform_lib, self.av_chan_id, block)
 
     def __enter__(self):
@@ -475,10 +473,10 @@ class WyzeIOTCSession:
         gap = time.time() - self.frame_ts
 
         if gap > 5:
-            logger.warning(f"[VIDEO] super slow {gap=}")
+            logger.info(f"[IOTC]] video super slow {gap=}")
             self.clear_buffer()
         if gap > 1:
-            logger.debug(f"[VIDEO] slow {gap=}")
+            logger.debug(f"[IOTC] video slow {gap=}")
             self.flush_pipe("audio", gap)
         if gap > 0:
             self._sleep_buffer += gap
@@ -553,7 +551,7 @@ class WyzeIOTCSession:
     def clear_buffer(self) -> None:
         """Clear local buffer."""
         warnings.warn("[IOTC] clear buffer")
-        assert self.av_chan_id is not None, "Please call _connect() first!"
+        assert self.av_chan_id is not None, "Please call _connect() before calling clear_buffer()!"
         self.sync_camera_time(True)
         tutk.av_client_clean_local_buf(self.tutk_platform_lib, self.av_chan_id)
 
@@ -576,7 +574,7 @@ class WyzeIOTCSession:
             logger.warning(f"[IOTC] Flushing Error: [{type(ex).__name__}] {ex}")
 
     def recv_audio_data(self) -> Iterator[bytes]:
-        assert self.av_chan_id is not None, "Please call _connect() first!"
+        assert self.av_chan_id is not None, "Please call _connect() before calling recv_audio_data()!"
         try:
             while self.should_stream():
                 err_no, frame_data, frame_info = tutk.av_recv_audio_data(
@@ -596,6 +594,7 @@ class WyzeIOTCSession:
             logger.warning(f"[IOTC] Error: [{type(ex).__name__}] {ex}")
         finally:
             self.state = WyzeIOTCSessionState.CONNECTING_FAILED
+            logger.debug("[IOTC] Audio stream ended")
 
     def recv_audio_pipe(self) -> None:
         """Write raw audio frames to a named pipe."""
@@ -618,7 +617,7 @@ class WyzeIOTCSession:
             self.audio_pipe_ready = False
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(fifo_path)
-            logger.warning("[IOTC] Audio pipe closed")
+            logger.debug("[IOTC] Audio pipe closed")
 
     def _sync_audio_frame(self, frame_info):
         # Some cams can't sync
@@ -628,17 +627,17 @@ class WyzeIOTCSession:
         gap = float(f"{frame_info.timestamp}.{frame_info.timestamp_ms}") - self.frame_ts
 
         if abs(gap) > 5:
-            logger.debug(f"[AUDIO] out of sync {gap=}")
+            logger.debug(f"[IOTC] Audio out of sync {gap=}")
             self.clear_buffer()
 
         if gap < -1:
-            logger.debug(f"[AUDIO] behind video.. {gap=}")
+            logger.debug(f"[IOTC] Audio behind video.. {gap=}")
             self.flush_pipe("audio", gap)
 
         if gap > 0:
             self._sleep_buffer += gap
         if gap > 1:
-            logger.debug(f"[AUDIO] ahead of video.. {gap=}")
+            logger.debug(f"[ITOC] Audio ahead of video.. {gap=}")
             time.sleep(gap / 2)
 
     def get_audio_sample_rate(self) -> int:
@@ -666,7 +665,7 @@ class WyzeIOTCSession:
         if not codec:
             raise RuntimeError(f"\nUnknown audio codec {codec_id=}\n")
 
-        logger.info(f"[AUDIO] {codec=} {sample_rate=} {codec_id=}")
+        logger.info(f"[IOTC] Audio {codec=} {sample_rate=} {codec_id=}")
         return codec, sample_rate or 16000
 
     def identify_audio_codec(self, limit: int = 60) -> tuple[str, int]:
@@ -696,7 +695,7 @@ class WyzeIOTCSession:
             assert self.camera.p2p_id, "Missing p2p_id"
 
             session_id = tutk.iotc_get_session_id(self.tutk_platform_lib)
-            if session_id < 0:  # type: ignore
+            if int(session_id) < 0:
                 raise tutk.TutkError(session_id)
             self.session_id = session_id
 
@@ -717,7 +716,7 @@ class WyzeIOTCSession:
                     self.connect_timeout,
                 )
 
-            if session_id < 0:  # type: ignore
+            if int(session_id) < 0:
                 raise tutk.TutkError(session_id)
             self.session_id = session_id
 
@@ -748,11 +747,7 @@ class WyzeIOTCSession:
             if self.state != WyzeIOTCSessionState.CONNECTED:
                 self.state = WyzeIOTCSessionState.CONNECTING_FAILED
 
-        logger.info(
-            f"[IOTC] AV Client Start: "
-            f"chan_id={self.av_chan_id} "
-            f"expected_chan={channel_id}"
-        )
+        logger.info(f"[IOTC] AV Client Start: {self.av_chan_id=} expected_chan={channel_id}")
 
         self.tutk_platform_lib.avClientSetMaxBufSize(max_buf_size)
         tutk.av_client_set_recv_buf_size(
@@ -791,7 +786,7 @@ class WyzeIOTCSession:
                 result = challenge.result()
 
                 if not result:
-                    warnings.warn(f"CONNECT FAILED: {challenge}")
+                    warnings.warn(f"[IOTC] CONNECT FAILED: {challenge}")
                     raise ValueError("CONNECT_REQUEST_FAILED")
 
                 logger.info(f"[IOTC] {challenge.resp_protocol=}")

@@ -8,17 +8,17 @@ from wyzebridge.auth import STREAM_AUTH, WbAuth
 from wyzebridge.bridge_utils import env_bool, env_cam, is_livestream
 from wyzebridge.logging import logger
 from wyzebridge.mtx_server import MtxServer
-from wyzebridge.stream import StreamManager
+from wyzebridge.stream_manager import StreamManager
 from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.wyze_stream import WyzeStream, WyzeStreamOptions
-from wyzecam.api_models import WyzeCamera
+from wyzecam.api_models import WyzeAccount, WyzeCamera
 
 class WyzeBridge(Thread):
     __slots__ = "api", "streams", "mtx"
 
     def __init__(self) -> None:
         Thread.__init__(self)
-        for sig in {"SIGTERM", "SIGINT"}:
+        for sig in ["SIGTERM", "SIGINT"]:
             signal.signal(getattr(signal, sig), self.clean_up)
         print(f"\n🚀 DOCKER-WYZE-BRIDGE v{config.VERSION} {config.BUILD_STR}\n")
         self.api: WyzeApi = WyzeApi()
@@ -32,7 +32,7 @@ class WyzeBridge(Thread):
         mtx_alive = self.mtx.sub_process_alive()
         active_streams = len(self.streams.active_streams())
         wyze_authed = self.api.auth is not None and self.api.auth.access_token is not None
-        return { "mtx_alive":mtx_alive , "wyze_authed": wyze_authed, "active_streams": active_streams }
+        return { "mtx_alive": mtx_alive , "wyze_authed": wyze_authed, "active_streams": active_streams }
 
     def run(self, fresh_data: bool = False) -> None:
         self._initialize(fresh_data)
@@ -60,27 +60,30 @@ class WyzeBridge(Thread):
 
     def setup_streams(self):
         """Gather and setup streams for each camera."""
-        WyzeStream.user = self.api.get_user()
-        WyzeStream.api = self.api
+        user = self.api.get_user()
 
         for cam in self.api.filtered_cams():
             logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}] at {cam.name_uri}")
+
             if config.SNAPSHOT_TYPE == "api":
-                self.api.save_thumbnail(cam.name_uri)
+                self.api.save_thumbnail(cam.name_uri, "") # let it run in background
+
             options = WyzeStreamOptions(
                 quality=env_cam("quality", cam.name_uri),
                 audio=bool(env_cam("enable_audio", cam.name_uri)),
                 record=bool(env_cam("record", cam.name_uri)),
                 reconnect=(not config.ON_DEMAND) or is_livestream(cam.name_uri),
             )
-            self.add_substream(cam, options)
-            stream = WyzeStream(cam, options)
-            stream.rtsp_fw_enabled = self.rtsp_fw_proxy(cam, stream)
 
+            stream = WyzeStream(user, self.api, cam, options)
+            stream.rtsp_fw_enabled = self.rtsp_fw_proxy(cam, stream)
             self.mtx.add_path(stream.uri, not options.reconnect)
+            self.streams.add(stream)
+
             if env_cam("record", cam.name_uri):
                 self.mtx.record(stream.uri)
-            self.streams.add(stream)
+
+            self.add_substream(user, self.api, cam, options)
 
     def rtsp_fw_proxy(self, cam: WyzeCamera, stream: WyzeStream) -> bool:
         if rtsp_fw := env_bool("rtsp_fw").lower():
@@ -91,7 +94,7 @@ class WyzeBridge(Thread):
                 return True
         return False
 
-    def add_substream(self, cam: WyzeCamera, options: WyzeStreamOptions):
+    def add_substream(self, user: WyzeAccount, api: WyzeApi, cam: WyzeCamera, options: WyzeStreamOptions):
         """Setup and add substream if enabled for camera."""
         if env_bool(f"SUBSTREAM_{cam.name_uri}") or (
             env_bool("SUBSTREAM") and cam.can_substream
@@ -100,7 +103,7 @@ class WyzeBridge(Thread):
             record = bool(env_cam("sub_record", cam.name_uri))
             sub_opt = replace(options, substream=True, quality=quality, record=record)
             logger.info(f"[++] Adding {cam.name_uri} substream quality: {quality} record: {record}")
-            sub = WyzeStream(cam, sub_opt)
+            sub = WyzeStream(user, api, cam, sub_opt)
             self.mtx.add_path(sub.uri, not options.reconnect)
             self.streams.add(sub)
 

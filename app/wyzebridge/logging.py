@@ -11,7 +11,7 @@ log_time = "%X" if env_bool("LOG_TIME") else ""
 
 multiprocessing.current_process().name = "WyzeBridge"
 logger: logging.Logger = logging.getLogger("WyzeBridge")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(log_level)
 
 warnings.formatwarning = lambda msg, *args, **kwargs: f"WARNING: {msg}"
 logging.captureWarnings(True)

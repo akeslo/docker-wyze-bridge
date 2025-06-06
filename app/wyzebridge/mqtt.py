@@ -19,7 +19,6 @@ MQTT_USER, _, MQTT_PASS = getenv("MQTT_AUTH", ":").partition(":")
 MQTT_HOST, _, MQTT_PORT = getenv("MQTT_HOST", ":").partition(":")
 RETRIES = int(getenv("MQTT_RETRIES", "3"))
 
-
 def mqtt_enabled(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -40,7 +39,6 @@ def mqtt_enabled(func):
         MQTT_ENABLED = False
 
     return wrapper
-
 
 @mqtt_enabled
 def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> None:
@@ -77,7 +75,6 @@ def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> No
 
     publish_messages(msgs)
 
-
 @mqtt_enabled
 def mqtt_sub_topic(m_topics: list, callback) -> Optional[paho.mqtt.client.Client]:
     """Connect to mqtt and return the client."""
@@ -101,13 +98,11 @@ def mqtt_sub_topic(m_topics: list, callback) -> Optional[paho.mqtt.client.Client
 
     return client
 
-
 def bridge_status(client: Optional[paho.mqtt.client.Client]):
     """Set bridge online if MQTT is enabled."""
     if not client:
         return
     client.publish(f"{MQTT_TOPIC}/state", "online", retain=True)
-
 
 @mqtt_enabled
 def publish_messages(messages: list) -> None:
@@ -122,7 +117,6 @@ def publish_messages(messages: list) -> None:
             else None
         ),
     )
-
 
 @mqtt_enabled
 def publish_topic(topic: str, message=None, retain=True):
@@ -139,7 +133,6 @@ def publish_topic(topic: str, message=None, retain=True):
         retain=retain,
     )
 
-
 @mqtt_enabled
 def update_mqtt_state(camera: str, state: str):
     msg = [(f"{MQTT_TOPIC}/{camera}/state", state, 0, True)]
@@ -147,14 +140,12 @@ def update_mqtt_state(camera: str, state: str):
         msg.append((f"{MQTT_TOPIC}/{camera}/power", "on", 0, True))
     publish_messages(msg)
 
-
 @mqtt_enabled
 def update_preview(cam_name: str):
     with contextlib.suppress(FileNotFoundError):
         img_file = f"{IMG_PATH}{cam_name}.{env_bool('IMG_TYPE','jpg')}"
         with open(img_file, "rb") as img:
             publish_topic(f"{cam_name}/image", img.read(), True)
-
 
 @mqtt_enabled
 def cam_control(cams: dict, callback):
@@ -187,7 +178,7 @@ def _mqtt_discovery(client, cams, msg):
 def _on_message(client, callback, msg):
     msg_topic = msg.topic.split("/")
     if len(msg_topic) < 3:
-        logger.warning(f"[MQTT] Invalid topic: {msg.topic}")
+        logger.warning(f"[MQTT] Invalid topic: {msg.topic} for {client=}")
         return
 
     cam, topic, action = msg_topic[-3:]

@@ -5,7 +5,6 @@ import traceback
 import zoneinfo
 from collections import namedtuple
 from ctypes import c_int
-from dataclasses import dataclass
 from datetime import datetime
 from enum import IntEnum
 from queue import Empty, Full
@@ -14,6 +13,8 @@ from threading import Thread
 from time import sleep, time
 from typing import Optional
 
+from wyzebridge.wyze_stream_options import WyzeStreamOptions
+from wyzebridge.stream import Stream
 from wyzebridge.bridge_utils import env_bool, env_cam
 from wyzebridge.config import COOLDOWN, MQTT_TOPIC
 from wyzebridge.ffmpeg import get_ffmpeg_cmd
@@ -39,38 +40,15 @@ class StreamStatus(IntEnum):
     CONNECTING = 2
     CONNECTED = 3
 
-@dataclass(slots=True)
-class WyzeStreamOptions:
-    quality: str = "hd180"
-    audio: bool = False
-    record: bool = False
-    reconnect: bool = False
-    substream: bool = False
-    frame_size: int = 0
-    bitrate: int = 120
-
-    def __post_init__(self):
-        if self.record:
-            self.reconnect = True
-
-    def update_quality(self, hq_frame_size: int = 0) -> None:
-        quality = (self.quality or "hd").lower().ljust(3, "0")
-        bit = int(quality[2:] or "0")
-
-        self.quality = quality
-        self.bitrate = bit or 180
-        self.frame_size = 1 if "sd" in quality else hq_frame_size
-
-
-class WyzeStream:
-    user: WyzeAccount
-    api: WyzeApi
+class WyzeStream(Stream):
     __slots__ = (
+        "user",
+        "api",
         "camera",
         "options",
         "start_time",
-        "_state",
         "uri",
+        "_state",
         "cam_resp",
         "cam_cmd",
         "process",
@@ -79,13 +57,15 @@ class WyzeStream:
         "motion_ts",
     )
 
-    def __init__(self, camera: WyzeCamera, options: WyzeStreamOptions) -> None:
+    def __init__(self, user: WyzeAccount, api: WyzeApi, camera: WyzeCamera, options: WyzeStreamOptions) -> None:
+        self.user: WyzeAccount = user
+        self.api: WyzeApi = api
         self.camera: WyzeCamera = camera
         self.options: WyzeStreamOptions = options
-        self.uri = camera.name_uri + ("-sub" if options.substream else "")
+        self.start_time: float = 0
+        self.uri: str = camera.name_uri + ("-sub" if options.substream else "")
 
         self.rtsp_fw_enabled: bool = False
-        self.start_time: float = 0
         self.cam_resp: mp.Queue
         self.cam_cmd: mp.Queue
         self.process: Optional[mp.Process] = None
@@ -209,15 +189,14 @@ class WyzeStream:
 
         return self.state > StreamStatus.DISABLED
 
-    def disable(self) -> None:
-        if self.state == StreamStatus.DISABLED:
-            return
+    def disable(self) -> bool:
+        if self.state != StreamStatus.DISABLED:
+            logger.info(f"🔒 Disabling {self.uri}")
+            if self.state != StreamStatus.STOPPED:
+                self.stop()
 
-        logger.info(f"🔒 Disabling {self.uri}")
-        if self.state != StreamStatus.STOPPED:
-            self.stop()
-
-        self.state = StreamStatus.DISABLED
+            self.state = StreamStatus.DISABLED
+        return True
 
     def health_check(self, should_start: bool = True) -> int:
         self.motion

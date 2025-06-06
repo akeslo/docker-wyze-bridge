@@ -132,7 +132,7 @@ schema:
   BOA_ALARM: bool?
   BOA_MOTION: str?
   BOA_COOLDOWN: int?
-  CAM_OPTIONS:
+  CAM_OPTIONS?:
     - CAM_NAME: str?
       AUDIO: bool?
       FFMPEG: str?
@@ -146,7 +146,7 @@ schema:
       SUB_RECORD: bool?
       SUBSTREAM: bool?
       MOTION_WEBHOOKS: str?
-  MEDIAMTX:
+  MEDIAMTX?:
     - match(^\w+=.*)?
   DOMAIN: str?
   WB_HLS_URL: url?

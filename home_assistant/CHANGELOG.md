@@ -1,5 +1,26 @@
 # What's Changed
 
+## What's Changed in v3.11.0
+
+Cleanup of authorization logic and adding background activity
+
+- RECORD **is working again**!
+- Marked CAM_OPTIONS and MEDIAMTX as optional in the config
+- Cleanup the snapshot pruning to ignore files going missing and
+  use only prune each camera's path, not the entire image directory
+- Added background pruning of snapshots to speed startup
+- Fix forced DEBUG log level
+- Fix LOW_LATENCY should be LLHLS
+- Extend session connection timeout to 60 seconds
+- Fixed FPS calculation
+- Split out WyzeStreamOptions
+- Split out StreamManager
+- Make Stream know type of camera and options.
+- Make WyzeStream be a Stream
+- Reduced default logging level for ffmpeg
+- Tons of logging cleanup
+- Cleaned up warnings
+
 ## What's Changed in v3.10.14
 
 - Made MQTT config value optional Fixes #39

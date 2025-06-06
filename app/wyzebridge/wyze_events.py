@@ -9,7 +9,6 @@ from wyzebridge.mqtt import update_preview
 from wyzebridge.webhooks import send_webhook
 from wyzebridge.wyze_stream import WyzeStream
 
-
 class WyzeEvents:
     __slots__ = "api", "streams", "events", "last_check", "last_ts"
 
@@ -19,7 +18,7 @@ class WyzeEvents:
         self.events: deque[str] = deque(maxlen=20)
         self.last_check: float = 0
         self.last_ts: int = 0
-        logger.info(f"API Motion Events Enabled [interval={MOTION_INT}]")
+        logger.info(f"[EVENTS] API Motion Events Enabled [interval={MOTION_INT}]")
 
     def enabled_cams(self) -> list:
         return [s.camera.mac for s in self.streams.values() if s.enabled]
@@ -29,7 +28,7 @@ class WyzeEvents:
             return []
         self.last_check, resp = self.api.get_events(self.enabled_cams(), self.last_ts)
         if resp:
-            logger.debug(f"[MOTION] Got {len(resp)} events")
+            logger.debug(f"[EVENTS] Got {len(resp)} events")
         return resp
 
     def set_motion(self, mac: str, files: list) -> None:
@@ -40,7 +39,7 @@ class WyzeEvents:
                 stream.motion = self.last_ts
                 event_time = datetime.fromtimestamp(self.last_ts)
                 msg = f"Motion detected on {stream.uri} at {event_time: %H:%M:%S}"
-                logger.info(f"[MOTION] {msg}")
+                logger.info(f"[EVENTS] {msg}")
                 send_webhook("motion", stream.uri, msg, img)
                 if MOTION_START:
                     stream.start()
@@ -50,7 +49,7 @@ class WyzeEvents:
     def process_event(self, event: dict):
         if event["event_id"] in self.events:
             return
-        logger.debug(f"[MOTION] New motion event: {event['event_id']}")
+        logger.debug(f"[EVENTS] New motion event: {event['event_id']}")
         self.events.append(event["event_id"])
         self.last_ts = int(event["event_ts"] / 1000)
         if time.time() - self.last_ts < 30:
