@@ -46,9 +46,6 @@ ports_description:
   8889/tcp: WebRTC http://localhost:8889/mystream and http://localhost:8889/mystream/whep
   8890/udp: SRT UDP srt://localhost:8890?streamid=read:mystream:myuser:mypass
   5000/tcp: WEB-UI http://localhost:5000/mystream
-environment:
-  IMG_DIR: media/wyze/img/
-  RECORD_PATH: media/wyze/recordings/{cam_name}/%Y/%m/%d/
 map:
   - addon_config:rw
   - media:rw
@@ -160,3 +157,5 @@ schema:
   WB_PASSWORD: str?
   STREAM_AUTH: str?
   STUN_SERVER: str?
+  LATITUDE: float?
+  LONGITUDE: float?

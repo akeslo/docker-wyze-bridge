@@ -1,5 +1,24 @@
 # What's Changed
 
+# What's Changed in v3.12.1
+
+Cleaned MQTT logic and pull in some others' changes
+
+### New features
+
+Automatic Sunrise/Sunset snapshots drive ny the `LONGITUDE` and `LATITUDE` configuration variables.
+`FORCE_IOTC_DETAIL` if true will force detailed debugging for the IOTC subsystem which can be used to decode a camera's protocol messages.
+
+- MQTT cleanup with more logging and move configuration to config.py
+- Read the TUTK device_config.json once not every interaction
+- Gathering up other changes
+  - Add GW_DBD Doorbell Duo to list not yet validated from @Angel-Vazquez change
+  - Add SNAPSHOT_CAMERAS and  sunset/sunrise snapshots from @ruddell [see](https://github.com/mrlt8/docker-wyze-bridge/compare/main...ruddell:docker-wyze-bridge:sunrise-snapshotter
+)
+  - Picking up the relevant changes from p2pcam
+- Cleanup of config circular dependencies
+- Fix run if syntax old habits die hard
+
 # What's Changed in v3.12.0
 
 Cleaned up the startup logic to ensure things start quickly and moved configurations around so everything is overrideable

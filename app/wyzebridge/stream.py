@@ -1,7 +1,7 @@
 from typing import Any,  Optional, Protocol
 
-from wyzebridge.wyze_stream_options import WyzeStreamOptions
 from wyzecam.api_models import WyzeCamera
+from wyzebridge.wyze_stream_options import WyzeStreamOptions
 
 class Stream(Protocol):
     camera: WyzeCamera

@@ -6,7 +6,7 @@ import threading
 from typing import Optional
 
 from wyzebridge.bridge_utils import LIVESTREAM_PLATFORMS, env_bool, env_cam
-from wyzebridge.config import IMG_PATH, SNAPSHOT_FORMAT
+from wyzebridge.config import IMG_PATH, IMG_TYPE, SNAPSHOT_FORMAT
 from wyzebridge.logging import logger
 
 def get_ffmpeg_cmd(
@@ -267,7 +267,7 @@ def parse_timedelta(env_key: str) -> Optional[timedelta]:
         return
 
 def rtsp_snap_cmd(cam_name: str, interval: bool = False):
-    ext = env_bool("IMG_TYPE", "jpg")
+    ext = IMG_TYPE
     img = f"{IMG_PATH}{cam_name}.{ext}"
 
     if interval and SNAPSHOT_FORMAT:

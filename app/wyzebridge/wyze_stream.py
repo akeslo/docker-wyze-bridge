@@ -13,6 +13,9 @@ from threading import Thread
 from time import sleep, time
 from typing import Optional
 
+from wyzecam.iotc import WyzeIOTC, WyzeIOTCSession
+from wyzecam.tutk.tutk import TutkError
+from wyzecam.api_models import WyzeAccount, WyzeCamera
 from wyzebridge.wyze_stream_options import WyzeStreamOptions
 from wyzebridge.stream import Stream
 from wyzebridge.bridge_utils import env_bool, env_cam
@@ -24,7 +27,6 @@ from wyzebridge.webhooks import send_webhook
 from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.wyze_commands import GET_CMDS, PARAMS, SET_CMDS
 from wyzebridge.wyze_control import camera_control
-from wyzecam import TutkError, WyzeAccount, WyzeCamera, WyzeIOTC, WyzeIOTCSession
 
 NET_MODE = {0: "P2P", 1: "RELAY", 2: "LAN"}
 

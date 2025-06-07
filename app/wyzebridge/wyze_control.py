@@ -6,13 +6,15 @@ from re import findall
 from typing import Any, Optional
 
 import requests
-from wyzebridge.bridge_utils import env_bool
-from wyzebridge.config import BOA_COOLDOWN, BOA_INTERVAL, IMG_PATH, MQTT_TOPIC
-from wyzebridge.logging import logger
-from wyzebridge.mqtt import MQTT_ENABLED, publish_messages
-from wyzebridge.wyze_commands import CMD_VALUES, GET_CMDS, GET_PAYLOAD, PARAMS, SET_CMDS
-from wyzecam import WyzeIOTCSession, tutk_protocol
+
+from wyzecam.tutk import tutk_protocol
 from wyzecam.tutk.tutk import TutkError
+from wyzecam.tutk.tutk_protocol import K10058TakePhoto, K10148StartBoa, K11010GetCruisePoints, K11018SetPTZPosition, TutkWyzeProtocolError
+from wyzecam.iotc import WyzeIOTCSession
+from wyzebridge.config import BOA_ALARM, BOA_COOLDOWN, BOA_ENABLED, BOA_INTERVAL, BOA_MOTION, BOA_PHOTO, BOA_TAKE_PHOTO, IMG_PATH, MQTT_TOPIC
+from wyzebridge.logging import logger
+from wyzebridge.mqtt import MQTT_ENABLED, publish_messages, publish_topic
+from wyzebridge.wyze_commands import CMD_VALUES, GET_CMDS, GET_PAYLOAD, PARAMS, SET_CMDS
 
 REQ_K10050 = ["4.51", "4.52", "4.53", "4.50.4"]
 """Firmware versions that require K10050GetVideoParam to get bitrate."""
@@ -20,13 +22,11 @@ REQ_K10050 = ["4.51", "4.52", "4.53", "4.50.4"]
 NO_BITRATE = ["4.36.12", "4.50.4.9222"]
 """Firmware versions that are broken and no longer return the actual bitrate."""
 
-
 def cam_http_alive(ip: str) -> bool:
     """Test if camera http server is up."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         return s.connect_ex((ip, 80)) == 0
-
 
 def pull_last_image(cam: dict, path: str, as_snap: bool = False):
     """Pull last image from camera SD card."""
@@ -46,7 +46,7 @@ def pull_last_image(cam: dict, path: str, as_snap: bool = False):
                 logger.info(f"Pulling {path} file from camera ({file_name=})")
                 resp = req.get(f"http://{ip}/SDPath/{path}/{date}/{file_name}")
                 _, modded = get_header_dates(dict(resp.headers))
-                # with open(f"{img_dir}{path}_{file_name}", "wb") as img:
+
                 save_name = "_" + ("alarm.jpg" if path == "alarm" else file_name)
                 if as_snap:
                     save_name = ".jpg"
@@ -57,11 +57,10 @@ def pull_last_image(cam: dict, path: str, as_snap: bool = False):
     finally:
         cam["last_photo"] = file_name, modded
 
-
 def get_header_dates(
     resp_header: dict,
 ) -> tuple[Optional[datetime], Optional[datetime]]:
-    """Get dates from boa header."""
+    """Get dates from BOA header."""
     boa_date = "%a, %d %b %Y %X %Z"
     try:
         date = datetime.strptime(resp_header.get("Date", ""), boa_date)
@@ -70,24 +69,18 @@ def get_header_dates(
     except ValueError:
         return None, None
 
-
 def check_boa_enabled(sess: WyzeIOTCSession, uri: str) -> Optional[dict]:
     """
     Check if boa should be enabled.
 
     env options:
-        - boa_enabled: Requires LAN connection and SD card. required to pull any images.
-        - boa_interval: the number of seconds between photos/keep alive.
-        - boa_take_photo: Take a high res photo directly on the camera SD card.
-        - boa_alarm: Pull alarm/motion image from the SD card.
-        - boa_cooldown: Cooldown between motion alerts.
+        - BOA_ENABLED: Requires LAN connection and SD card. required to pull any images.
+        - BOA_INTERVAL: the number of seconds between photos/keep alive.
+        - BOA_TAKE_PHOTO: Take a high res photo directly on the camera SD card.
+        - BOA_ALARM: Pull alarm/motion image from the SD card.
+        - BOA_COOLDOWN: Cooldown between motion alerts.
     """
-    if not (
-        env_bool("boa_enabled")
-        or env_bool("boa_photo")
-        or env_bool("boa_ALARM")
-        or env_bool("boa_MOTION")
-    ):
+    if not (BOA_ENABLED or BOA_PHOTO or BOA_ALARM or BOA_MOTION):
         return
 
     session = sess.session_check()
@@ -101,7 +94,7 @@ def check_boa_enabled(sess: WyzeIOTCSession, uri: str) -> Optional[dict]:
     ):
         return
 
-    logger.info(f"Local boa HTTP server enabled on http://{ip}")
+    logger.info(f"[CONTROL] Local BOA HTTP server enabled on http://{ip}")
     return {
         "ip": ip,
         "uri": uri,
@@ -111,30 +104,26 @@ def check_boa_enabled(sess: WyzeIOTCSession, uri: str) -> Optional[dict]:
         "cooldown": datetime.now(),
     }
 
-
 def boa_control(sess: WyzeIOTCSession, boa_cam: Optional[dict]):
     """
-    Boa related controls.
+    BOA related controls.
     """
     if not boa_cam:
         return
     iotctrl_msg = []
-    if env_bool("boa_take_photo"):
-        iotctrl_msg.append(tutk_protocol.K10058TakePhoto())
+    if BOA_TAKE_PHOTO:
+        iotctrl_msg.append(K10058TakePhoto())
     if not cam_http_alive(boa_cam["ip"]):
-        logger.info("starting boa server")
-        iotctrl_msg.append(tutk_protocol.K10148StartBoa())
+        logger.info("[CONTROL] Starting BOA server")
+        iotctrl_msg.append(K10148StartBoa())
     if iotctrl_msg:
         with sess.iotctrl_mux() as mux:
             for msg in iotctrl_msg:
                 mux.send_ioctl(msg)
-    if datetime.now() > boa_cam["cooldown"] and (
-        env_bool("boa_alarm") or env_bool("boa_motion")
-    ):
+    if datetime.now() > boa_cam["cooldown"] and (BOA_ALARM or BOA_MOTION):
         motion_alarm(boa_cam)
-    if env_bool("boa_photo"):
+    if BOA_PHOTO:
         pull_last_image(boa_cam, "photo", True)
-
 
 def camera_control(sess: WyzeIOTCSession, camera_info: Queue, camera_cmd: Queue):
     """
@@ -185,7 +174,6 @@ def camera_control(sess: WyzeIOTCSession, camera_info: Queue, camera_cmd: Queue)
 
         camera_info.put({topic: resp})
 
-
 def update_params(sess: WyzeIOTCSession):
     """
     Update camera parameters.
@@ -201,7 +189,6 @@ def update_params(sess: WyzeIOTCSession):
     if newer_firmware:
         send_tutk_msg(sess, "_bitrate", "debug")
 
-
 def update_bit_fps(sess: WyzeIOTCSession, topic: str, payload: Any) -> dict:
     """
     Update bitrate or fps.
@@ -212,11 +199,10 @@ def update_bit_fps(sess: WyzeIOTCSession, topic: str, payload: Any) -> dict:
     try:
         val = int(payload[topic] if isinstance(payload, dict) else payload)
         sess.update_frame_size_rate(**{topic: val})
-        publish_messages([(f"{MQTT_TOPIC}/{sess.camera.name_uri}/{topic}", val)])
+        publish_topic(f"{sess.camera.name_uri}/{topic}", val)
         return resp | {"status": "success", "value": val}
     except Exception as ex:
         return resp | {"status": "error", "response": str(ex)}
-
 
 def pan_to_cruise_point(sess: WyzeIOTCSession, cmd):
     """
@@ -229,7 +215,7 @@ def pan_to_cruise_point(sess: WyzeIOTCSession, cmd):
 
     i = int(cmd[1]) - 1 if int(cmd[1]) > 0 else int(cmd[1])
     with sess.iotctrl_mux() as mux:
-        points = mux.send_ioctl(tutk_protocol.K11010GetCruisePoints()).result(timeout=5)
+        points = mux.send_ioctl(K11010GetCruisePoints()).result(timeout=5)
         if not points or not isinstance(points, list):
             return resp | {"response": f"Invalid cruise points: {points=}"}
 
@@ -239,7 +225,7 @@ def pan_to_cruise_point(sess: WyzeIOTCSession, cmd):
             return resp | {"response": f"Cruise point {i} NOT found. {points=}"}
 
         logger.info(f"Pan to cruise_point={i} {waypoints}")
-        res = mux.send_ioctl(tutk_protocol.K11018SetPTZPosition(*waypoints)).result(
+        res = mux.send_ioctl(K11018SetPTZPosition(*waypoints)).result(
             timeout=5
         )
 
@@ -248,14 +234,14 @@ def pan_to_cruise_point(sess: WyzeIOTCSession, cmd):
         "response": ",".join(map(str, res)) if isinstance(res, bytes) else res,
     }
 
-
 def update_mqtt_values(cam_name: str, res: dict):
     base = f"{MQTT_TOPIC}/{cam_name}"
+
     if "bitrate" in res:
         publish_messages([(f"{base}/{k}", v) for k, v in res.items()])
+
     if msgs := [(f"{base}/{k}", res[v]) for k, v in PARAMS.items() if v in res]:
         publish_messages(msgs)
-
 
 def send_tutk_msg(sess: WyzeIOTCSession, cmd: tuple | str, log: str = "info") -> dict:
     """
@@ -277,23 +263,27 @@ def send_tutk_msg(sess: WyzeIOTCSession, cmd: tuple | str, log: str = "info") ->
     try:
         with sess.iotctrl_mux() as mux:
             iotc = mux.send_ioctl(tutk_msg)
-        if tutk_msg.code in {11000, 11004}:
+
+        if tutk_msg.code in {11000, 11004}: # K11000SetRotaryByDegree, K11004ResetRotatePosition
             return _response(resp, log=log)
         elif res := iotc.result(timeout=5):
-            if tutk_msg.code in {10020, 10050}:
+            if tutk_msg.code in {10020, 10050}: # K10020CheckCameraParams, K10050GetVideoParam
                 update_mqtt_values(sess.camera.name_uri, res)
                 if not fw_check(sess.camera.firmware_ver, NO_BITRATE):
                     res = bitrate_check(sess, res, resp["command"])
                 params = None
+
             if isinstance(res, bytes):
                 res = ",".join(map(str, res))
+
             if isinstance(res, str) and res.isdigit():
                 res = int(res)
+
             return _response(resp, res, params, log)
     except Empty:
         return _response(resp, log=log)
-    except tutk_protocol.TutkWyzeProtocolError as ex:
-        return resp | _error_response(cmd, tutk_protocol.TutkWyzeProtocolError(ex))
+    except TutkWyzeProtocolError as ex:
+        return resp | _error_response(cmd, TutkWyzeProtocolError(ex))
     except TutkError as ex:
         connected = not sess.should_stream(0)
         return resp | _error_response(cmd, f"[{ex.code}] {ex.name}", connected)
@@ -305,7 +295,6 @@ def send_tutk_msg(sess: WyzeIOTCSession, cmd: tuple | str, log: str = "info") ->
 
     return _response(resp, res, params, log)
 
-
 def _response(response, res=None, params=None, log="info"):
     response |= {"status": "success", "response": res, "value": res}
     if params and response["command"] not in GET_PAYLOAD:
@@ -313,16 +302,14 @@ def _response(response, res=None, params=None, log="info"):
             response["value"] = params
         else:
             response["value"] = ",".join(map(str, params))
-    getattr(logger, log)(f"[CONTROL] response={res}")
+    logger.debug(f"[CONTROL] response={res}")
 
     return response
-
 
 def _error_response(cmd, error, log=True):
     if log:
         logger.error(f"[CONTROL] ERROR - {error=}, {cmd=}")
     return {"status": "error", "response": str(error)}
-
 
 def bitrate_check(sess: WyzeIOTCSession, res: dict, topic: str):
     key = "bitrate" if topic in res else "3"
@@ -334,7 +321,6 @@ def bitrate_check(sess: WyzeIOTCSession, res: dict, topic: str):
         return res.get(topic, res)
 
     return int(res.get(PARAMS[topic], 0)) if topic in PARAMS else res
-
 
 def parse_cmd(cmd: tuple | str, log: str) -> tuple:
     topic, payload = cmd if isinstance(cmd, tuple) else (cmd, None)
@@ -362,7 +348,6 @@ def parse_cmd(cmd: tuple | str, log: str) -> tuple:
 
     return resp, tutk_msg, params
 
-
 def parse_payload(payload: Any) -> list | dict:
     if isinstance(payload, dict):
         return {k: int(v) if str(v).isdigit() else v for k, v in payload.items()}
@@ -380,7 +365,6 @@ def parse_payload(payload: Any) -> list | dict:
 
     return params
 
-
 def motion_alarm(cam: dict):
     """Check alarm and trigger MQTT/http motion and return cooldown."""
     pull_last_image(cam, "alarm")
@@ -388,21 +372,21 @@ def motion_alarm(cam: dict):
         logger.info(f"[MOTION] Alarm file detected at {cam['last_photo'][1]}")
         cam["cooldown"] = datetime.now() + timedelta(seconds=BOA_COOLDOWN)
         cam["last_alarm"] = cam["last_photo"]
-    publish_messages([(f"{MQTT_TOPIC}/{cam['uri']}/motion", motion)])
-    if motion and (http := env_bool("boa_motion")):
+
+    publish_topic(f"{MQTT_TOPIC}/{cam['uri']}/motion", motion)
+
+    if motion and (http := BOA_MOTION):
         try:
             resp = requests.get(http.format(cam_name=cam["uri"]))
             resp.raise_for_status()
         except requests.exceptions.HTTPError as ex:
             logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
 
-
 def parse_fw(fw_ver: str) -> tuple[str, tuple[int, ...]]:
     parts = fw_ver.split(".")
     if len(parts) < 4:
         parts.extend(["0"] * (4 - len(parts)))
     return ".".join(parts[:2]), tuple(map(int, parts[2:]))
-
 
 def fw_check(fw_ver: Optional[str], min_fw_ver: list) -> bool:
     """Check firmware compatibility."""

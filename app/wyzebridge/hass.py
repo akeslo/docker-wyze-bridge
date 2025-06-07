@@ -5,7 +5,8 @@ from sys import stdout
 from typing import Optional
 
 import requests
-import wyzecam
+
+from wyzebridge.bridge_utils import clean_cam_name
 from wyzebridge.logging import format_logging, logger
 
 def setup_hass(hass_token: Optional[str]) -> None:
@@ -35,7 +36,7 @@ def setup_hass(hass_token: Optional[str]) -> None:
 
     if cam_options := conf.pop("CAM_OPTIONS", None):
         for cam in cam_options:
-            if not (cam_name := wyzecam.clean_name(cam.get("CAM_NAME", ""))):
+            if not (cam_name := clean_cam_name(cam.get("CAM_NAME", ""))):
                 continue
             if "AUDIO" in cam:
                 environ[f"ENABLE_AUDIO_{cam_name}"] = str(cam["AUDIO"])
@@ -76,13 +77,14 @@ def setup_hass(hass_token: Optional[str]) -> None:
 
     if not conf.get("MQTT"):
         logger.warning("[HASS] MQTT is disabled")
+        environ.pop("MQTT", None)
         environ.pop("MQTT_HOST", None)
 
     log_level = conf.get("LOG_LEVEL", "")
     log_time = "%X" if conf.get("LOG_TIME") else ""
     
     if log_level or log_time:
-        log_level = getattr(logging, log_level.upper(), 20)
+        log_level = getattr(logging, log_level.upper(), 20) #INFO
         format_logging(logging.StreamHandler(stdout), log_level, log_time)
 
     if conf.get("LOG_FILE"):

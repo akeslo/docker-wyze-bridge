@@ -1,9 +1,10 @@
-import os
-import re
 import uuid
 from typing import Any, Optional
 
 from pydantic import BaseModel
+
+from wyzebridge.bridge_utils import clean_cam_name
+from wyzebridge.config import URI_MAC, URI_SEPARATOR
 
 MODEL_NAMES = {
     "WYZEC1": "V1",
@@ -26,6 +27,7 @@ MODEL_NAMES = {
     "HL_WCO2": "Outdoor V2",
     "AN_RSCW": "Battery Cam Pro",
     "LD_CFP": "Floodlight Pro",
+    "GW_DBD": "Doorbell Duo",
 }
 
 # These cameras don't seem to support WebRTC
@@ -50,7 +52,7 @@ BATTERY_CAMS = {"WVOD1", "HL_WCO2", "AN_RSCW"}
 
 AUDIO_16k = {"WYZE_CAKP2JFUS", "HL_CAM3P", "MODEL_HL_PANP"}
 # Doorbells
-DOORBELL = {"WYZEDB3", "HL_DB2"}
+DOORBELL = {"WYZEDB3", "HL_DB2", "GW_DBD"}
 
 FLOODLIGHT_CAMS = {"HL_CFL2"}
 
@@ -82,7 +84,6 @@ class WyzeCredential(BaseModel):
     email_session_id: Optional[str] = None
     phone_id: Optional[str] = str(uuid.uuid4())
 
-
 class WyzeAccount(BaseModel):
     """User profile information; see [wyzecam.api.get_user_info][].
 
@@ -102,7 +103,6 @@ class WyzeAccount(BaseModel):
     user_code: str
     user_center_id: str
     open_user_id: str
-
 
 class WyzeCamera(BaseModel):
     """Wyze camera device information; see [wyzecam.api.get_camera_list][].
@@ -142,12 +142,12 @@ class WyzeCamera(BaseModel):
     def name_uri(self) -> str:
         """Return a URI friendly name by removing special characters and spaces."""
         uri_sep = "-"
-        if os.getenv("URI_SEPARATOR") in {"-", "_", "#"}:
-            uri_sep = os.getenv("URI_SEPARATOR", uri_sep)
+        if URI_SEPARATOR in {"-", "_", "#"}:
+            uri_sep = URI_SEPARATOR
         uri = self.nickname or self.mac
-        if os.getenv("URI_MAC", "").lower() == "true" and (self.mac or self.parent_mac):
+        if URI_MAC and (self.mac or self.parent_mac):
             uri += uri_sep + (self.mac or self.parent_mac or "")[-4:]
-        uri = clean_name(uri, uri_sep).lower()
+        uri = clean_cam_name(uri, uri_sep).lower()
         return uri
 
     @property
@@ -197,16 +197,6 @@ class WyzeCamera(BaseModel):
     @property
     def rtsp_fw(self) -> bool:
         return bool(self.firmware_ver and self.firmware_ver[:5] in RTSP_FW)
-
-
-def clean_name(name: str, uri_sep: str = "_") -> str:
-    """Return a URI friendly name by removing special characters and spaces."""
-    return (
-        re.sub(r"[^\-\w+]", "", name.strip().replace(" ", uri_sep))
-        .encode("ascii", "ignore")
-        .decode()
-    ).upper()
-
 
 def is_min_version(version: Optional[str], min_version: Optional[str]) -> bool:
     if not version or not min_version:

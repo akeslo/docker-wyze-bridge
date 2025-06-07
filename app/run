@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [["$BUILD" == "dev"]]; then
+if [ "$BUILD" = "dev" ]; then
     printenv
     cat /data/options.json
 fi

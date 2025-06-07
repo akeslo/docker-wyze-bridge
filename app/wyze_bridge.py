@@ -1,11 +1,14 @@
+from os import makedirs
 import signal
 import sys
 from dataclasses import replace
 from threading import Thread
 
-from wyzebridge import config
-from wyzebridge.auth import STREAM_AUTH, WbAuth
-from wyzebridge.bridge_utils import env_bool, env_cam, is_livestream
+from wyzebridge.build_config import BUILD_STR, VERSION
+from wyzebridge.config import BRIDGE_IP, HASS_TOKEN, IMG_PATH, LLHLS, ON_DEMAND, STREAM_AUTH, TOKEN_PATH
+from wyzebridge.auth import WbAuth
+from wyzebridge.bridge_utils import env_bool, env_cam, is_livestream, migrate_path
+from wyzebridge.hass import setup_hass
 from wyzebridge.logging import logger
 from wyzebridge.mtx_server import MtxServer
 from wyzebridge.stream_manager import StreamManager
@@ -13,20 +16,30 @@ from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.wyze_stream import WyzeStream, WyzeStreamOptions
 from wyzecam.api_models import WyzeAccount, WyzeCamera
 
+setup_hass(HASS_TOKEN)
+
+makedirs(TOKEN_PATH, exist_ok=True)
+makedirs(IMG_PATH, exist_ok=True)
+
+if HASS_TOKEN:
+    migrate_path("/config/wyze-bridge/", "/config/")
+
 class WyzeBridge(Thread):
     __slots__ = "api", "streams", "mtx"
 
     def __init__(self) -> None:
         Thread.__init__(self)
+
         for sig in ["SIGTERM", "SIGINT"]:
             signal.signal(getattr(signal, sig), self.clean_up)
-        print(f"\n🚀 DOCKER-WYZE-BRIDGE v{config.VERSION} {config.BUILD_STR}\n")
+
+        print(f"\n🚀 DOCKER-WYZE-BRIDGE v{VERSION} {BUILD_STR}\n")
         self.api: WyzeApi = WyzeApi()
         self.streams: StreamManager = StreamManager(self.api)
         self.mtx: MtxServer = MtxServer()
-        self.mtx.setup_webrtc(config.BRIDGE_IP)
-        if config.LLHLS:
-            self.mtx.setup_llhls(config.TOKEN_PATH, bool(config.HASS_TOKEN))
+        self.mtx.setup_webrtc(BRIDGE_IP)
+        if LLHLS:
+            self.mtx.setup_llhls(TOKEN_PATH, bool(HASS_TOKEN))
 
     def health(self):
         mtx_alive = self.mtx.sub_process_alive()
@@ -73,7 +86,7 @@ class WyzeBridge(Thread):
                 quality=env_cam("quality", cam.name_uri),
                 audio=bool(env_cam("enable_audio", cam.name_uri)),
                 record=bool(env_cam("record", cam.name_uri)),
-                reconnect=(not config.ON_DEMAND) or is_livestream(cam.name_uri),
+                reconnect=(not ON_DEMAND) or is_livestream(cam.name_uri),
             )
 
             stream = WyzeStream(user, self.api, cam, options)

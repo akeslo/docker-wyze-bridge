@@ -963,7 +963,6 @@ def av_initialize(tutk_platform_lib: CDLL, max_num_channels: c_int = c_int(1)) -
     logger.debug(f"[TUTK] avInitialize returned {max_chans=}")
     return max_chans
 
-
 def av_deinitialize(tutk_platform_lib: CDLL) -> int:
     """Deinitialize AV module.
 
@@ -976,7 +975,6 @@ def av_deinitialize(tutk_platform_lib: CDLL) -> int:
     errno: int = tutk_platform_lib.avDeInitialize()
     logger.debug(f"[TUTK] avDeInitialize returned {errno=}")
     return errno
-
 
 def iotc_session_check(
     tutk_platform_lib: CDLL, session_id: c_int

@@ -1,10 +1,10 @@
 from typing import Optional
 
 import requests
-from wyzebridge.bridge_utils import env_cam
-from wyzebridge.config import VERSION
-from wyzebridge.logging import logger
 
+from wyzebridge.build_config import VERSION
+from wyzebridge.bridge_utils import env_cam
+from wyzebridge.logging import logger
 
 def send_webhook(event: str, camera: str, msg: str, img: Optional[str] = None) -> None:
     if not (url := env_cam(f"{event}_webhooks", camera, style="original")):

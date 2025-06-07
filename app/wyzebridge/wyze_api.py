@@ -10,15 +10,15 @@ from time import sleep, time
 from typing import Any, Callable, Optional
 from urllib.parse import parse_qs, urlparse
 
-import wyzecam
 from requests import get
 from requests.exceptions import ConnectionError, HTTPError, RequestException
+
+from wyzecam.api_models import WyzeAccount, WyzeCamera, WyzeCredential
+from wyzecam.api import AccessTokenError, RateLimitError, WyzeAPIError, get_cam_webrtc, get_camera_list, get_user_info, login, post_device, refresh_token, run_action
 from wyzebridge.auth import get_secret
-from wyzebridge.bridge_utils import env_bool, env_filter
+from wyzebridge.bridge_utils import env_bool, env_list
 from wyzebridge.config import IMG_PATH, MOTION, TOKEN_PATH
 from wyzebridge.logging import logger
-from wyzecam.api import AccessTokenError, RateLimitError, WyzeAPIError, get_cam_webrtc, post_device, run_action
-from wyzecam.api_models import WyzeAccount, WyzeCamera, WyzeCredential
 
 def cached(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self, *args: Any, **kwargs: Any):
@@ -79,7 +79,7 @@ class WyzeCredentials:
         self.api_key: str = get_secret("API_KEY")
 
         if not self.is_set:
-            logger.warning("[WARN] Credentials are NOT set")
+            logger.warning("[API] Credentials are NOT set")
 
     @property
     def is_set(self) -> bool:
@@ -139,7 +139,7 @@ class WyzeApi:
             sleep(1)
 
         try:
-            self.auth = wyzecam.login(
+            self.auth = login(
                 email=self.creds.email,
                 password=self.creds.password,
                 api_key=self.creds.api_key,
@@ -177,7 +177,7 @@ class WyzeApi:
             logger.info("⚠️ Using 'REFRESH_TOKEN' for authentication")
             try:
                 creds = WyzeCredential(refresh_token=token)
-                self.auth = wyzecam.refresh_token(creds)
+                self.auth = refresh_token(creds)
             except Exception:
                 self.auth = None
 
@@ -188,7 +188,7 @@ class WyzeApi:
             return self.user
 
         if self.auth:
-            self.user = wyzecam.get_user_info(self.auth)
+            self.user = get_user_info(self.auth)
 
         return self.user
 
@@ -202,7 +202,7 @@ class WyzeApi:
             logger.error("[API] User not authorized in get_camera()")
             return []
 
-        self.cameras = wyzecam.get_camera_list(self.auth)
+        self.cameras = get_camera_list(self.auth)
         self._last_pull = time()
         logger.info(f"[API] Fetched [{len(self.cameras)}] cameras")
         logger.debug(f"[API] cameras={[c.nickname for c in self.cameras]}")
@@ -300,7 +300,7 @@ class WyzeApi:
             return
 
         try:
-            self.auth = wyzecam.refresh_token(self.auth)
+            self.auth = refresh_token(self.auth)
             pickle_dump("auth", self.auth)
             return self.auth
         except Exception as ex:
@@ -461,6 +461,17 @@ def valid_s3_url(url: Optional[str]) -> bool:
     except (ValueError, TypeError, KeyError):
         return False
 
+def env_filter(cam: WyzeCamera) -> bool:
+    """Check if cam is being filtered in any env."""
+    if not cam.nickname:
+        return False
+    return (
+        cam.nickname.upper().strip() in env_list("FILTER_NAMES")
+        or cam.mac in env_list("FILTER_MACS")
+        or cam.product_model in env_list("FILTER_MODELS")
+        or cam.model_name.upper() in env_list("FILTER_MODELS")
+    )
+    
 def filter_cams(cams: list[WyzeCamera]) -> list[WyzeCamera]:
     total = len(cams)
     if env_bool("FILTER_BLOCK"):
