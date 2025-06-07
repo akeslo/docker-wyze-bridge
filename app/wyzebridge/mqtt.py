@@ -1,42 +1,42 @@
 import contextlib
 import json
 from functools import wraps
-from os import getenv
 from socket import gaierror
 from time import sleep
 from typing import Optional
 
 import paho.mqtt.client
 import paho.mqtt.publish
+
+from wyzecam.api_models import WyzeCamera
+from wyzebridge.build_config import VERSION
 from wyzebridge.bridge_utils import env_bool
-from wyzebridge.config import IMG_PATH, MQTT_DISCOVERY, MQTT_TOPIC, VERSION
+from wyzebridge.config import IMG_PATH, MQTT_ENABLED, MQTT_DISCOVERY, MQTT_HOST, MQTT_PASS, MQTT_PORT, MQTT_RETRIES, MQTT_TOPIC, MQTT_USER, IMG_TYPE
 from wyzebridge.logging import logger
 from wyzebridge.wyze_commands import GET_CMDS, GET_PAYLOAD, PARAMS, SET_CMDS
-from wyzecam import WyzeCamera
 
-MQTT_ENABLED = bool(env_bool("MQTT_HOST"))
-MQTT_USER, _, MQTT_PASS = getenv("MQTT_AUTH", ":").partition(":")
-MQTT_HOST, _, MQTT_PORT = getenv("MQTT_HOST", ":").partition(":")
-RETRIES = int(getenv("MQTT_RETRIES", "3"))
+is_mqtt_active: bool = MQTT_ENABLED
 
 def mqtt_enabled(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        global MQTT_ENABLED
-        if not MQTT_ENABLED:
+        global is_mqtt_active
+
+        if not is_mqtt_active:
             return
 
-        for retry in range(1, RETRIES + 1):
+        for retry in range(1, MQTT_RETRIES + 1):
             try:
                 return func(*args, **kwargs)
             except (ConnectionRefusedError, TimeoutError, gaierror) as ex:
-                logger.error(f"[MQTT]  [{type(ex).__name__}] {ex}. Retrying {retry}/{RETRIES}...")
+                logger.error(f"[MQTT] [{type(ex).__name__}] {ex}. Retrying {retry}/{MQTT_RETRIES}...")
             except Exception as ex:
                 logger.error(f"[MQTT] [{type(ex).__name__}] {ex}")
+
             sleep(1)
 
-        logger.error(f"[MQTT] {RETRIES}/{RETRIES} retries failed. Disabling MQTT.")
-        MQTT_ENABLED = False
+        logger.error(f"[MQTT] {MQTT_RETRIES}/{MQTT_RETRIES} retries failed. Disabling MQTT.")
+        is_mqtt_active = False
 
     return wrapper
 
@@ -44,7 +44,8 @@ def mqtt_enabled(func):
 def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> None:
     """Publish MQTT discovery message for camera."""
     base = f"{MQTT_TOPIC}/{cam_uri}/"
-    msgs = [(f"{base}state", "stopped", 0, True)] if stopped else []
+    msgs = [{ "topic": f"{base}state", "payload": "stopped", "qos": 0, "retain": True}] if stopped else []
+
     if MQTT_DISCOVERY:
         base_payload = {
             "device": {
@@ -71,7 +72,7 @@ def publish_discovery(cam_uri: str, cam: WyzeCamera, stopped: bool = True) -> No
                 uniq_id=f"WYZE{cam.mac}{entity.upper()}",
             )
 
-            msgs.append((topic, json.dumps(payload), 0, True))
+            msgs.append({ "topic": topic, "payload": json.dumps(payload), "qos": 0, "retain": True })
 
     publish_messages(msgs)
 
@@ -82,6 +83,7 @@ def mqtt_sub_topic(m_topics: list, callback) -> Optional[paho.mqtt.client.Client
     def on_connect(client, *_):
         """Callback for when the client receives a CONNACK response from the server."""
         client.publish(f"{MQTT_TOPIC}/state", "online", retain=True)
+
         for topic in m_topics:
             # Clear Retain Flag
             client.publish(f"{MQTT_TOPIC}/{topic}", retain=True)
@@ -92,8 +94,12 @@ def mqtt_sub_topic(m_topics: list, callback) -> Optional[paho.mqtt.client.Client
     client.username_pw_set(MQTT_USER, MQTT_PASS or None)
     client.user_data_set(callback)
     client.on_connect = on_connect
-    client.will_set(f"{MQTT_TOPIC}/state", payload="offline", qos=1, retain=True)
+    client.will_set(f"{MQTT_TOPIC}/state", payload="offline", qos=1, retain=True) # always retain "last will" offline message 
+
+    logger.info(f"[MQTT] Connecting to {MQTT_HOST}:{MQTT_PORT or 1883}")
     client.connect(MQTT_HOST, int(MQTT_PORT or 1883), 30)
+    
+    logger.info("[MQTT] Starting")
     client.loop_start()
 
     return client
@@ -102,34 +108,31 @@ def bridge_status(client: Optional[paho.mqtt.client.Client]):
     """Set bridge online if MQTT is enabled."""
     if not client:
         return
-    client.publish(f"{MQTT_TOPIC}/state", "online", retain=True)
+
+    client.publish(f"{MQTT_TOPIC}/state", "online", retain=False)
 
 @mqtt_enabled
 def publish_messages(messages: list) -> None:
     """Publish multiple messages to the MQTT server."""
+    logger.debug(f"[MQTT] Publishing {len(messages)} messages to {MQTT_HOST}:{MQTT_PORT} as {MQTT_USER=}")
+
     paho.mqtt.publish.multiple(
         messages,
         hostname=MQTT_HOST,
         port=int(MQTT_PORT or 1883),
-        auth=(
-            {"username": MQTT_USER, "password": MQTT_PASS}
-            if env_bool("MQTT_AUTH")
-            else None
-        ),
+        auth=( {"username": MQTT_USER, "password": MQTT_PASS} if env_bool("MQTT_AUTH") else None),
     )
 
 @mqtt_enabled
-def publish_topic(topic: str, message=None, retain=True):
+def publish_topic(topic: str, message=None, retain=False):
+    logger.debug(f"[MQTT] Publishing {message} to {MQTT_HOST}:{MQTT_PORT} topic {MQTT_TOPIC}/{topic} as {MQTT_USER=}")
+
     paho.mqtt.publish.single(
         topic=f"{MQTT_TOPIC}/{topic}",
         payload=message,
         hostname=MQTT_HOST,
         port=int(MQTT_PORT or 1883),
-        auth=(
-            {"username": MQTT_USER, "password": MQTT_PASS}
-            if env_bool("MQTT_AUTH")
-            else None
-        ),
+        auth=( {"username": MQTT_USER, "password": MQTT_PASS} if env_bool("MQTT_AUTH") else None),
         retain=retain,
     )
 
@@ -143,7 +146,7 @@ def update_mqtt_state(camera: str, state: str):
 @mqtt_enabled
 def update_preview(cam_name: str):
     with contextlib.suppress(FileNotFoundError):
-        img_file = f"{IMG_PATH}{cam_name}.{env_bool('IMG_TYPE','jpg')}"
+        img_file = f"{IMG_PATH}{cam_name}.{IMG_TYPE}"
         with open(img_file, "rb") as img:
             publish_topic(f"{cam_name}/image", img.read(), True)
 
@@ -165,7 +168,6 @@ def cam_control(cams: dict, callback):
 
         return client
 
-
 def _mqtt_discovery(client, cams, msg):
     if msg.payload.decode().lower() != "online" or not cams:
         return
@@ -173,7 +175,6 @@ def _mqtt_discovery(client, cams, msg):
     bridge_status(client)
     for uri, cam in cams.items():
         publish_discovery(uri, cam, False)
-
 
 def _on_message(client, callback, msg):
     msg_topic = msg.topic.split("/")
@@ -186,7 +187,6 @@ def _on_message(client, callback, msg):
     resp = callback(cam, topic, parse_payload(msg) if include_payload else "")
     if resp.get("status") != "success":
         logger.info(f"[MQTT] {resp}")
-
 
 def parse_payload(msg):
     payload = msg.payload.decode()
@@ -201,7 +201,6 @@ def parse_payload(msg):
             payload = next(iter(json_msg.values()))
 
     return payload
-
 
 def get_entities(base_topic: str, pan_cam: bool = False, rtsp: bool = False) -> dict:
     entities = {

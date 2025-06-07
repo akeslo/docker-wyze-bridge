@@ -15,6 +15,8 @@ from flask import (
     send_from_directory,
 )
 from werkzeug.exceptions import NotFound
+
+from wyzebridge.build_config import VERSION
 from wyze_bridge import WyzeBridge
 from wyzebridge import config, web_ui
 from wyzebridge.auth import WbAuth
@@ -47,7 +49,7 @@ def create_app():
             return render_template(
                 "login.html",
                 api=WbAuth.api,
-                version=config.VERSION,
+                version=VERSION,
             )
 
         tokens = request.form.get("tokens")
@@ -104,7 +106,7 @@ def create_app():
                 number_of_columns=number_of_columns,
                 refresh_period=refresh_period,
                 api=WbAuth.api,
-                version=config.VERSION,
+                version=VERSION,
                 webrtc=bool(config.BRIDGE_IP),
                 show_video=show_video,
                 video_format=video_format.lower(),

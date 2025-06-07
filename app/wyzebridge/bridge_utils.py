@@ -1,8 +1,7 @@
 import os
+import re
 import shutil
 from typing import Any
-
-from wyzecam.api_models import WyzeCamera
 
 LIVESTREAM_PLATFORMS = {
     "YouTube": "rtmp://a.rtmp.youtube.com/live2/",
@@ -45,16 +44,13 @@ def env_list(env: str) -> list:
         for x in os.getenv(env.upper(), "").split(",")
     ]
 
-def env_filter(cam: WyzeCamera) -> bool:
-    """Check if cam is being filtered in any env."""
-    if not cam.nickname:
-        return False
+def clean_cam_name(name: str, uri_sep: str = "_") -> str:
+    """Return a URI friendly name by removing special characters and spaces."""
     return (
-        cam.nickname.upper().strip() in env_list("FILTER_NAMES")
-        or cam.mac in env_list("FILTER_MACS")
-        or cam.product_model in env_list("FILTER_MODELS")
-        or cam.model_name.upper() in env_list("FILTER_MODELS")
-    )
+        re.sub(r"[^\-\w+]", "", name.strip().replace(" ", uri_sep))
+        .encode("ascii", "ignore")
+        .decode()
+    ).upper()
 
 def split_int_str(env_value: str, min: int = 0, default: int = 0) -> tuple[str, int]:
     string_value = "".join(filter(str.isalpha, env_value))

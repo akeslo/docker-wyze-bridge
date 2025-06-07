@@ -55,21 +55,26 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
-## What's Changed in v3.11.1
+## What's Changed in v3.12.1
 
-Turns out you cannot have a completely optional section in a config.yml
+Cleaned MQTT logic and pull in some others' changes
 
-Use something like
+### New features
 
-```yaml
-CAM_OPTIONS:
-  - CAM_NAME: fake-camera-name
-    RECORD: false
-```
+Automatic Sunrise/Sunset snapshots drive ny the `LONGITUDE` and `LATITUDE` configuration variables.
+`FORCE_IOTC_DETAIL` if true will force detailed debugging for the IOTC subsystem which can be used to decode a camera's protocol messages.
 
-- Revert CAM_OPTIONS and MEDIAMTX yaml schema and add default values to configs
+- MQTT cleanup with more logging and move configuration to config.py
+- Read the TUTK device_config.json once not every interaction
+- Gathering up other changes
+  - Add GW_DBD Doorbell Duo to list not yet validated from @Angel-Vazquez change
+  - Add SNAPSHOT_CAMERAS and  sunset/sunrise snapshots from @ruddell [see](https://github.com/mrlt8/docker-wyze-bridge/compare/main...ruddell:docker-wyze-bridge:sunrise-snapshotter
+)
+  - Picking up the relevant changes from p2pcam
+- Cleanup of config circular dependencies
+- Fix run if syntax old habits die hard
 
-# What's Changed in v3.12.0
+## What's Changed in v3.12.0
 
 Cleaned up the startup logic to ensure things start quickly and moved configurations around so everything is overrideable
 
@@ -386,7 +391,7 @@ ensure the combined path includes `%s` (which is the unix epoch value as an inte
 
 [![Home Assistant Add-on](https://img.shields.io/badge/home_assistant-add--on-blue.svg?logo=homeassistant&logoColor=white)](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant)
 [![Homebridge](https://img.shields.io/badge/homebridge-camera--ffmpeg-blue.svg?logo=homebridge&logoColor=white)](https://sunoo.github.io/homebridge-camera-ffmpeg/configs/WyzeCam.html)
-[![Portainer stack](https://img.shields.io/badge/portainer-stack-blue.svg?logo=portainer&logoColor=white)](https://github.com/idisposable/docker-wyze-bridge/wiki/Portainer)
+[![Portainer stack](https://img.shields.io/badge/portainer-stack-blue.svg?logo=portainer&logoColor=white)](https://github.com/mrlt8/docker-wyze-bridge/wiki/Portainer)
 [![Unraid Community App](https://img.shields.io/badge/unraid-community--app-blue.svg?logo=unraid&logoColor=white)](https://github.com/mrlt8/docker-wyze-bridge/issues/236)
 
 Should work on most x64 systems as well as on most modern arm-based systems like the Raspberry Pi 3/4/5 or Apple Silicon M1/M2/M3.

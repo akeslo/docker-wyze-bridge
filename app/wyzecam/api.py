@@ -9,10 +9,10 @@ from os import getenv
 from typing import Any, Optional
 
 from requests import PreparedRequest, Response, get, post
+
+from wyzebridge.build_config import APP_VERSION, IOS_VERSION, VERSION
 from wyzecam.api_models import WyzeAccount, WyzeCamera, WyzeCredential
 
-IOS_VERSION = getenv("IOS_VERSION")
-APP_VERSION = getenv("APP_VERSION")
 SCALE_USER_AGENT = f"Wyze/{APP_VERSION} (iPhone; iOS {IOS_VERSION}; Scale/3.00)"
 AUTH_API = "https://auth-prod.api.wyze.com"
 WYZE_API = "https://api.wyzecam.com/app"
@@ -203,7 +203,7 @@ def get_user_info(auth_info: WyzeCredential) -> WyzeAccount:
 
     """
     payload = _payload(auth_info)
-    ui_headers = _headers() # (auth_info.phone_id, SCALE_USER_AGENT)
+    ui_headers = _headers()
     resp = post(
         f"{WYZE_API}/user/get_user_info", json=payload, headers=ui_headers
     )
@@ -389,7 +389,7 @@ def _headers(
         return {
             "apikey": api_key,
             "keyid": key_id,
-            "user-agent": f"docker-wyze-bridge/{getenv('VERSION')}",
+            "user-agent": f"docker-wyze-bridge/{VERSION}",
         }
 
     return {

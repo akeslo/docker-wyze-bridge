@@ -78,7 +78,6 @@ class TutkIOCtrlFuture:
         data_str = f" resp_data={repr(self.resp_data)}" if self.resp_data else ""
         return f"<TutkIOCtlFuture req={self.req}{errcode_str}{data_str}>"
 
-
 class TutkIOCtrlMux:
     """
     An "IO Ctrl" interface for sending and receiving data over a control channel

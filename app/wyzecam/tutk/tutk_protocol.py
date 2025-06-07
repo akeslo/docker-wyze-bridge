@@ -8,19 +8,20 @@ from struct import iter_unpack, pack, unpack
 from typing import Any, Optional
 
 import xxtea
+
 from wyzecam.api_models import DOORBELL
 
 from . import tutk
 
 PROJECT_ROOT = Path(getenv("TUTK_PROJECT_ROOT", Path(__file__).parent))
 
-
 logger = logging.getLogger(__name__)
 
+with open(PROJECT_ROOT / "device_config.json") as f:
+    device_config = json.load(f)
 
 class TutkWyzeProtocolError(tutk.TutkError):
     pass
-
 
 class TutkWyzeProtocolHeader(LittleEndianStructure):
     """
@@ -59,7 +60,6 @@ class TutkWyzeProtocolHeader(LittleEndianStructure):
             f"code={self.code} "
             f"txt_len={self.txt_len}>"
         )
-
 
 class TutkWyzeProtocolMessage:
     """
@@ -188,7 +188,6 @@ class K10002ConnectAuth(TutkWyzeProtocolMessage):
     def parse_response(self, resp_data):
         return json.loads(resp_data)
 
-
 class K10006ConnectUserAuth(TutkWyzeProtocolMessage):
     """
     New DB protocol version
@@ -233,7 +232,6 @@ class K10006ConnectUserAuth(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data):
         return json.loads(resp_data)
-
 
 class K10008ConnectUserAuth(TutkWyzeProtocolMessage):
     """
@@ -346,7 +344,6 @@ class K10020CheckCameraInfo(TutkWyzeProtocolMessage):
     def parse_response(self, resp_data):
         return json.loads(resp_data)
 
-
 class K10020CheckCameraParams(TutkWyzeProtocolMessage):
     """
     A command used to read multiple parameters from the camera.
@@ -363,7 +360,6 @@ class K10020CheckCameraParams(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data):
         return json.loads(resp_data)
-
 
 class K10030GetNetworkLightStatus(TutkWyzeProtocolMessage):
     """
@@ -395,7 +391,6 @@ class K10032SetNetworkLightStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10040GetNightVisionStatus(TutkWyzeProtocolMessage):
     """
     A message used to get the night vision status.
@@ -408,7 +403,6 @@ class K10040GetNightVisionStatus(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10040)
-
 
 class K10042SetNightVisionStatus(TutkWyzeProtocolMessage):
     """
@@ -427,7 +421,6 @@ class K10042SetNightVisionStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.status]))
 
-
 class K10044GetIRLEDStatus(TutkWyzeProtocolMessage):
     """
     A message used to get the IR and/or LED status from the camera.
@@ -439,7 +432,6 @@ class K10044GetIRLEDStatus(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10044)
-
 
 class K10046SetIRLEDStatus(TutkWyzeProtocolMessage):
     """
@@ -457,7 +449,6 @@ class K10046SetIRLEDStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.status]))
 
-
 class K10050GetVideoParam(TutkWyzeProtocolMessage):
     def __init__(self):
         super().__init__(10050)
@@ -471,7 +462,6 @@ class K10050GetVideoParam(TutkWyzeProtocolMessage):
             "hor_flip": data[3],
             "ver_flip": data[4],
         }
-
 
 class K10056SetResolvingBit(TutkWyzeProtocolMessage):
     """
@@ -510,7 +500,6 @@ class K10056SetResolvingBit(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data):
         return resp_data == b"\x01"
-
 
 class K10052DBSetResolvingBit(TutkWyzeProtocolMessage):
     """
@@ -557,7 +546,6 @@ class K10052DBSetResolvingBit(TutkWyzeProtocolMessage):
     def parse_response(self, resp_data):
         return resp_data == b"\x01"
 
-
 class K10052SetFPS(TutkWyzeProtocolMessage):
     def __init__(self, fps: int = 0):
         super().__init__(10052)
@@ -566,7 +554,6 @@ class K10052SetFPS(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([0, 0, 0, self.fps, 0, 0]))
 
-
 class K10052SetBitrate(TutkWyzeProtocolMessage):
     def __init__(self, value: int = 0):
         super().__init__(10052)
@@ -574,7 +561,6 @@ class K10052SetBitrate(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, pack("<HBBBB", self.bitrate, 0, 0, 0, 0))
-
 
 class K10052HorizontalFlip(TutkWyzeProtocolMessage):
     def __init__(self, value: int = 0):
@@ -587,7 +573,6 @@ class K10052HorizontalFlip(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([0, 0, 0, 0, self.horizontal, 0]))
 
-
 class K10052VerticalFlip(TutkWyzeProtocolMessage):
     def __init__(self, value: int = 0):
         super().__init__(10052)
@@ -598,7 +583,6 @@ class K10052VerticalFlip(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([0, 0, 0, 0, 0, self.vertical]))
-
 
 class K10070GetOSDStatus(TutkWyzeProtocolMessage):
     """
@@ -611,7 +595,6 @@ class K10070GetOSDStatus(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10070)
-
 
 class K10072SetOSDStatus(TutkWyzeProtocolMessage):
     """
@@ -630,7 +613,6 @@ class K10072SetOSDStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10074GetOSDLogoStatus(TutkWyzeProtocolMessage):
     """
     A message used to check if the OSD logo is enabled.
@@ -642,7 +624,6 @@ class K10074GetOSDLogoStatus(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10074)
-
 
 class K10076SetOSDLogoStatus(TutkWyzeProtocolMessage):
     """
@@ -661,7 +642,6 @@ class K10076SetOSDLogoStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10090GetCameraTime(TutkWyzeProtocolMessage):
     """
     A message used to get the current time on the camera.
@@ -674,7 +654,6 @@ class K10090GetCameraTime(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data):
         return int.from_bytes(resp_data, "little")
-
 
 class K10092SetCameraTime(TutkWyzeProtocolMessage):
     """
@@ -689,7 +668,6 @@ class K10092SetCameraTime(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, pack("<I", int(time.time() + 1)))
 
-
 class K10290GetMotionTagging(TutkWyzeProtocolMessage):
     """
     A message used to check if motion tagging (green box around motion) is enabled.
@@ -702,7 +680,6 @@ class K10290GetMotionTagging(TutkWyzeProtocolMessage):
     def __init__(self):
         super().__init__(10290)
 
-
 class K10200GetMotionAlarm(TutkWyzeProtocolMessage):
     def __init__(self):
         super().__init__(10200)
@@ -710,7 +687,6 @@ class K10200GetMotionAlarm(TutkWyzeProtocolMessage):
     def parse_response(self, resp_data):
         enabled, sensitivity = unpack("<BB", resp_data)
         return enabled
-
 
 class K10202SetMotionAlarm(TutkWyzeProtocolMessage):
 
@@ -722,7 +698,6 @@ class K10202SetMotionAlarm(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value, 0]))
 
-
 class K10206SetMotionAlarm(TutkWyzeProtocolMessage):
 
     def __init__(self, value: int):
@@ -732,7 +707,6 @@ class K10206SetMotionAlarm(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value, 0]))
-
 
 class K10292SetMotionTagging(TutkWyzeProtocolMessage):
     """
@@ -751,7 +725,6 @@ class K10292SetMotionTagging(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10302SetTimeZone(TutkWyzeProtocolMessage):
     """
     A message used to set the time zone on the camera.
@@ -768,7 +741,6 @@ class K10302SetTimeZone(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, pack("<b", self.value))
 
-
 class K10620CheckNight(TutkWyzeProtocolMessage):
     """
     A message used to check the night mode settings of the camera.
@@ -778,7 +750,6 @@ class K10620CheckNight(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10620)
-
 
 class K10624GetAutoSwitchNightType(TutkWyzeProtocolMessage):
     """
@@ -791,7 +762,6 @@ class K10624GetAutoSwitchNightType(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10624)
-
 
 class K10626SetAutoSwitchNightType(TutkWyzeProtocolMessage):
     """
@@ -809,7 +779,6 @@ class K10626SetAutoSwitchNightType(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.type]))
 
-
 class K10630SetAlarmFlashing(TutkWyzeProtocolMessage):
     """
     A message used to control the alarm AND siren on the camera.
@@ -826,7 +795,6 @@ class K10630SetAlarmFlashing(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value, self.value]))
 
-
 class K10632GetAlarmFlashing(TutkWyzeProtocolMessage):
     """
     A message used to get the alarm/siren status on the camera.
@@ -839,7 +807,6 @@ class K10632GetAlarmFlashing(TutkWyzeProtocolMessage):
     def __init__(self):
         super().__init__(10632)
 
-
 class K10640GetSpotlightStatus(TutkWyzeProtocolMessage):
     """
     A message used to check the spotlight settings of the camera.
@@ -849,7 +816,6 @@ class K10640GetSpotlightStatus(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10640)
-
 
 class K10058TakePhoto(TutkWyzeProtocolMessage):
     """
@@ -862,7 +828,6 @@ class K10058TakePhoto(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([1]))
 
-
 class K10148StartBoa(TutkWyzeProtocolMessage):
     """
     Temporarily start boa server
@@ -873,7 +838,6 @@ class K10148StartBoa(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([0, 1, 0, 0, 0]))
-
 
 class K10242FormatSDCard(TutkWyzeProtocolMessage):
     """
@@ -886,7 +850,6 @@ class K10242FormatSDCard(TutkWyzeProtocolMessage):
     def __init__(self, value: int = 0):
         super().__init__(10242)
         assert value == 1, "value must be 1 to confirm format!"
-
 
 class K10444SetDeviceState(TutkWyzeProtocolMessage):
     """
@@ -904,7 +867,6 @@ class K10444SetDeviceState(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10446CheckConnStatus(TutkWyzeProtocolMessage):
     """
     Get connection status on outdoor cam?
@@ -918,7 +880,6 @@ class K10446CheckConnStatus(TutkWyzeProtocolMessage):
 
     def parse_response(self, resp_data):
         return json.loads(resp_data)
-
 
 class K10448GetBatteryUsage(TutkWyzeProtocolMessage):
     """
@@ -942,7 +903,6 @@ class K10448GetBatteryUsage(TutkWyzeProtocolMessage):
             "5": data["5"],
         }
 
-
 class K10600SetRtspSwitch(TutkWyzeProtocolMessage):
     """
     Set switch value for RTSP server on camera.
@@ -959,7 +919,6 @@ class K10600SetRtspSwitch(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10604GetRtspParam(TutkWyzeProtocolMessage):
     """
     Get RTSP parameters from supported firmware.
@@ -967,7 +926,6 @@ class K10604GetRtspParam(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10604)
-
 
 class K11000SetRotaryByDegree(TutkWyzeProtocolMessage):
     """
@@ -991,7 +949,6 @@ class K11000SetRotaryByDegree(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         msg = pack("<hhB", self.horizontal, self.vertical, self.speed)
         return encode(self.code, msg)
-
 
 class K11002SetRotaryByAction(TutkWyzeProtocolMessage):
     """
@@ -1021,7 +978,6 @@ class K11002SetRotaryByAction(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.horizontal, self.vertical, self.speed]))
 
-
 class K11004ResetRotatePosition(TutkWyzeProtocolMessage):
     """
     Reset Rotation.
@@ -1036,7 +992,6 @@ class K11004ResetRotatePosition(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.position]))
-
 
 class K11006GetCurCruisePoint(TutkWyzeProtocolMessage):
     """
@@ -1065,7 +1020,6 @@ class K11006GetCurCruisePoint(TutkWyzeProtocolMessage):
             "blank": data[4],
         }
 
-
 class K11010GetCruisePoints(TutkWyzeProtocolMessage):
     """
     Get cruise points.
@@ -1091,7 +1045,6 @@ class K11010GetCruisePoints(TutkWyzeProtocolMessage):
             }
             for data in iter_unpack("<BHB", resp_data[1:])
         ]
-
 
 class K11012SetCruisePoints(TutkWyzeProtocolMessage):
     """
@@ -1119,7 +1072,6 @@ class K11012SetCruisePoints(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, self.points)
 
-
 class K11014GetCruise(TutkWyzeProtocolMessage):
     """
     Get switch value for Pan Scan, aka Cruise.
@@ -1131,7 +1083,6 @@ class K11014GetCruise(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(11014)
-
 
 class K11016SetCruise(TutkWyzeProtocolMessage):
     """
@@ -1149,7 +1100,6 @@ class K11016SetCruise(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
-
 
 class K11018SetPTZPosition(TutkWyzeProtocolMessage):
     """
@@ -1169,7 +1119,6 @@ class K11018SetPTZPosition(TutkWyzeProtocolMessage):
         time_val = int(time.time() * 1000) % 1_000_000_000
         return encode(self.code, pack("<IBH", time_val, self.vertical, self.horizontal))
 
-
 class K11020GetMotionTracking(TutkWyzeProtocolMessage):
     """
     A message used to check if motion tracking is enabled (camera pans
@@ -1182,7 +1131,6 @@ class K11020GetMotionTracking(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(11020)
-
 
 class K11022SetMotionTracking(TutkWyzeProtocolMessage):
     """
@@ -1201,7 +1149,6 @@ class K11022SetMotionTracking(TutkWyzeProtocolMessage):
 
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
-
 
 class K11635ResponseQuickMessage(TutkWyzeProtocolMessage):
     """
@@ -1223,7 +1170,6 @@ class K11635ResponseQuickMessage(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10646SetSpotlightStatus(TutkWyzeProtocolMessage):
     """
     A message used to set the spotlight (WYZEC3L) status.
@@ -1241,7 +1187,6 @@ class K10646SetSpotlightStatus(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 class K10720GetAccessoriesInfo(TutkWyzeProtocolMessage):
     """
     A message used to get the accessories info.
@@ -1253,7 +1198,6 @@ class K10720GetAccessoriesInfo(TutkWyzeProtocolMessage):
     def parse_response(self, resp_data):
         return json.loads(resp_data)
 
-
 class K10788GetIntegratedFloodlightInfo(TutkWyzeProtocolMessage):
     """
     A message used to get the integrated floodlight info.
@@ -1262,7 +1206,6 @@ class K10788GetIntegratedFloodlightInfo(TutkWyzeProtocolMessage):
     def __init__(self):
         super().__init__(10788)
 
-
 class K10820GetWhiteLightInfo(TutkWyzeProtocolMessage):
     """
     A message used to get the white light info.
@@ -1270,7 +1213,6 @@ class K10820GetWhiteLightInfo(TutkWyzeProtocolMessage):
 
     def __init__(self):
         super().__init__(10820)
-
 
 class K12060SetFloodLightSwitch(TutkWyzeProtocolMessage):
     """
@@ -1286,7 +1228,6 @@ class K12060SetFloodLightSwitch(TutkWyzeProtocolMessage):
     def encode(self) -> bytes:
         return encode(self.code, bytes([self.value]))
 
-
 def encode(code: int, data: Optional[bytes]) -> bytes:
     """
     Encode message
@@ -1297,7 +1238,6 @@ def encode(code: int, data: Optional[bytes]) -> bytes:
     data = data or b""
 
     return pack(f"<BBHHH8x{len(data)}s", 72, 76, 5, code, len(data), data)
-
 
 def decode(buf):
     if len(buf) < 16:
@@ -1317,9 +1257,7 @@ def decode(buf):
 
     return header, buf[16:expected_size] if header.txt_len > 0 else None
 
-
 STATUS_MESSAGES = {2: "updating", 4: "checking enr", 5: "off"}
-
 
 def respond_to_ioctrl_10001(
     data: bytes,
@@ -1355,7 +1293,6 @@ def respond_to_ioctrl_10001(
     logger.debug(f"[TUTKP] Sending response: {response}")
     return response
 
-
 def generate_challenge_response(camera_enr_b, enr, camera_status):
     if camera_status == 3:
         assert len(enr.encode("ascii")) >= 16, "Enr expected to be 16 bytes"
@@ -1370,10 +1307,7 @@ def generate_challenge_response(camera_enr_b, enr, camera_status):
 
     return xxtea.decrypt(camera_enr_b, camera_secret_key, padding=False)
 
-
 def supports(product_model, protocol, command):
-    with open(PROJECT_ROOT / "device_config.json") as f:
-        device_config = json.load(f)
     commands_db = device_config["supportedCommands"]
     supported_commands = []
 

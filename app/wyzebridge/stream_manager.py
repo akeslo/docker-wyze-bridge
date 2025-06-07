@@ -7,12 +7,13 @@ from typing import  Callable, Optional
 
 from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.stream import Stream
-from wyzebridge.config import MOTION, MQTT_DISCOVERY, SNAPSHOT_INT, SNAPSHOT_TYPE
+from wyzebridge.config import MOTION, MQTT_DISCOVERY, SNAPSHOT_TYPE
 from wyzebridge.ffmpeg import rtsp_snap_cmd
 from wyzebridge.logging import logger
 from wyzebridge.mqtt import bridge_status, cam_control, publish_topic, update_preview
 from wyzebridge.mtx_event import RtspEvent
 from wyzebridge.wyze_events import WyzeEvents
+from wyzebridge.bridge_utils_sunset import should_take_snapshot, should_skip_snapshot
 
 class StreamManager:
     __slots__ = "api", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "thread"
@@ -83,7 +84,9 @@ class StreamManager:
                 bridge_status(mqtt)
 
         if mqtt:
+            logger.info("[MQTT] Stopping")
             mqtt.loop_stop()
+
         logger.info("[STREAM] Stream monitoring stopped")
 
     def monitor_snapshots(self) -> None:
@@ -128,6 +131,8 @@ class StreamManager:
         if force or self._should_snap():
             self.last_snap = time.time()
             for cam in cams or self.active_streams():
+                if should_skip_snapshot(cam):
+                    continue
                 if SNAPSHOT_TYPE == "rtsp":
                     stop_subprocess(self.rtsp_snapshots.get(cam))
                     self.rtsp_snap_popen(cam, True)
@@ -135,7 +140,15 @@ class StreamManager:
                     self.api.save_thumbnail(cam, "")
 
     def _should_snap(self):
-        return SNAPSHOT_TYPE in ["rtsp", "api"] and time.time() - self.last_snap >= SNAPSHOT_INT
+        """
+        Determines whether a snapshot should be taken based on the interval, which can change on sunrise/sunset
+        
+        Returns:
+        - bool: True if a snapshot should be taken, False otherwise.
+        """
+        if not should_take_snapshot(SNAPSHOT_TYPE, self.last_snap):
+            return False
+        return True
 
     def get_sse_status(self) -> dict:
         return {
@@ -168,6 +181,7 @@ class StreamManager:
 
         if cam_resp := stream.send_cmd(cmd, payload):
             status = cam_resp.get("value") if cam_resp.get("status") == "success" else 0
+
             if isinstance(status, dict):
                 status = json.dumps(status)
 
@@ -207,8 +221,8 @@ class StreamManager:
             logger.info(f"❗ [{cam_name}] Snapshot timed out")
         except Exception as ex:
             logger.error(f"❗ [{cam_name}] [{type(ex).__name__}] {ex}")
-        stop_subprocess(ffmpeg)
 
+        stop_subprocess(ffmpeg)
         return False
 
 def stop_subprocess(ffmpeg: Optional[Popen]):

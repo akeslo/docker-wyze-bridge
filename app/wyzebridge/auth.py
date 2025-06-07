@@ -4,11 +4,10 @@ from hashlib import sha256
 from typing import Optional
 
 from werkzeug.security import generate_password_hash
-from wyzebridge.bridge_utils import env_bool
-from wyzebridge.config import TOKEN_PATH
-from wyzebridge.logging import logger
 
-STREAM_AUTH: str = env_bool("STREAM_AUTH", style="original")
+from wyzebridge.bridge_utils import env_bool
+from wyzebridge.config import FRESH_DATA, TOKEN_PATH, WB_AUTH
+from wyzebridge.logging import logger
 
 def get_secret(name: str, default: str = "") -> str:
     if not name:
@@ -42,7 +41,7 @@ def gen_api_key(email):
     return urlsafe_b64encode(hash_bytes).decode()[:40]
 
 class WbAuth:
-    enabled: bool = bool(env_bool("WB_AUTH") if os.getenv("WB_AUTH") else True)
+    enabled: bool = WB_AUTH
     username: str = get_secret("wb_username", "wbadmin")
     api: str = ""
     _pass: str = get_credential("wb_password")
@@ -70,7 +69,7 @@ class WbAuth:
 
     @classmethod
     def _update_credentials(cls, email: str, force: bool = False) -> None:
-        if force or env_bool("FRESH_DATA"):
+        if force or FRESH_DATA:
             clear_local_creds()
 
         if not get_credential("wb_password"):

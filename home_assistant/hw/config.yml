@@ -155,3 +155,5 @@ schema:
   WB_PASSWORD: str?
   STREAM_AUTH: str?
   STUN_SERVER: str?
+  LATITUDE: float?
+  LONGITUDE: float?

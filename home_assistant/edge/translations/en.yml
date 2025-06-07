@@ -84,7 +84,7 @@ configuration:
     description: Uses MediaMTX to record camera streams, this sets the default for all cameras.
   RECORD_KEEP:
     name: Recording Retention
-    description: How long to retain snapshots (e.g. 10h for 10 hours, 5d for 5 days). Defaults to 0s (immediately discard)
+    description: How long to retain recordings (e.g. 10h for 10 hours, 5d for 5 days). Defaults to 0s (never discard)
   RECORD_LENGTH:
     name: Recording Length
     description: How long each recording is before starting a new file. Defaults to 60s
@@ -191,12 +191,12 @@ configuration:
     description: Take a photo on the camera on Boa Keep Alive Interval.
   BOA_PHOTO:
     name: Pull Photo (MQTT Motion Alerts)
-    description: Pull the HQ photo from the SD card via Boa.
+    description: Pull the HQ photo from the SD card via BOA.
   BOA_ALARM:
     name: Pull Alarm (MQTT Motion Alerts)
-    description: Pull alarm/motion image from the SD card via Boa.
+    description: Pull alarm image from the SD card via BOA.
   BOA_MOTION:
-    name: Webhook on Boa Motion
+    name: Webhook on BOA Motion
     description: Make a Webhook/HTTP request to any url. e.g., http://localhost/motion?cam={cam_name}
   BOA_COOLDOWN:
     name: Motion Cooldown
@@ -230,4 +230,9 @@ configuration:
   STUN_SERVER:
     name: STUN Server
     description: Specify the STUN server for MediaMTX for WebRTC. For example stun:stun.l.google.com:19302
-
+  LATITUDE:
+    name: Local Latitude
+    description: Used to compute sunset/sunrise for snapshots
+  LONGITUDE:
+    name: Local Longitude
+    description: Used to compute sunset/sunrise for snapshots

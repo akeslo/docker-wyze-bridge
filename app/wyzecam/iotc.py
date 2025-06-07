@@ -1,3 +1,4 @@
+import atexit
 import base64
 import contextlib
 import enum
@@ -11,6 +12,7 @@ import warnings
 from ctypes import CDLL, c_int, c_ubyte, c_uint16, c_uint, c_uint32
 from typing import Iterator, Optional, Tuple, Union
 
+from wyzebridge.config import FORCE_IOTC_DETAIL, LLHLS, SDK_KEY
 from wyzecam.api_models import WyzeAccount, WyzeCamera
 from wyzecam.tutk import tutk, tutk_ioctl_mux, tutk_protocol
 from wyzecam.tutk.tutk_ioctl_mux import TutkIOCtrlMux
@@ -22,7 +24,6 @@ from wyzecam.tutk.tutk_protocol import (
 )
 
 logger = logging.getLogger(__name__)
-FORCE_IOTC_DETAIL: bool = bool(os.getenv("FORCE_IOTC_DETAIL", False) or False)
 
 class WyzeIOTC:
     """Wyze IOTC singleton, used to construct iotc_sessions.
@@ -76,7 +77,7 @@ class WyzeIOTC:
             tutk_platform_lib = tutk.load_library(str(path.absolute()))
 
         if not sdk_key:
-            sdk_key = os.getenv("SDK_KEY")
+            sdk_key = SDK_KEY
 
         license_status = tutk.TUTK_SDK_Set_License_Key(tutk_platform_lib, str(sdk_key))
         if license_status < 0:
@@ -114,14 +115,17 @@ class WyzeIOTC:
             raise tutk.TutkError(actual_num_chans)
 
         self.max_num_av_channels = actual_num_chans
+        atexit.register(self.deinitialize)
 
     def deinitialize(self):
         """Deinitialize the underlying TUTK library.
 
         This is called automatically by the context manager
         """
-        tutk.av_deinitialize(self.tutk_platform_lib)
-        tutk.iotc_deinitialize(self.tutk_platform_lib)
+        if self.initd:
+            tutk.av_deinitialize(self.tutk_platform_lib)
+            tutk.iotc_deinitialize(self.tutk_platform_lib)
+            self.initd = False
 
     @property
     def version(self):
@@ -288,7 +292,7 @@ class WyzeIOTCSession:
 
     @property
     def sleep_interval(self) -> float:
-        if os.getenv("LLHLS"):  # May cause CPU to spike
+        if LLHLS:  # May cause CPU to spike
             return 0
 
         if not self.frame_ts:
@@ -684,7 +688,7 @@ class WyzeIOTCSession:
 
     def _connect(
         self,
-        timeout_secs: c_uint32 = c_uint32(10),
+        timeout_secs: c_uint32 = c_uint32(20),
         channel_id: c_ubyte  = c_ubyte(0),
         username: str = "admin",
         password: str = "888888",
@@ -814,7 +818,7 @@ class WyzeIOTCSession:
                     raise ValueError("ENR_AUTH_FAILED")
                 
                 if auth_response["connectionRes"] != "1":
-                    warnings.warn(f"[IOTC] AUTH FAILED: {auth_response}")
+                    warnings.warn(f"[IOTC] AUTH FAILED: {auth_response=}")
                     raise ValueError("AUTH_FAILED")
 
                 self.camera.set_camera_info(auth_response["cameraInfo"])

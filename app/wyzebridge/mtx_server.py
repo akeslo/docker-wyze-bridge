@@ -6,7 +6,8 @@ from subprocess import Popen
 from typing import Optional
 
 import yaml
-from wyzebridge.config import MTX_HLSVARIANT, MTX_READTIMEOUT, MTX_WRITEQUEUESIZE, RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER
+from wyzebridge.build_config import MTX_TAG
+from wyzebridge.config import MTX_HLSVARIANT, MTX_READTIMEOUT, MTX_WRITEQUEUESIZE, RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER, SUBJECT_ALT_NAME
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
 
@@ -178,7 +179,7 @@ class MtxServer:
 
     def start(self) -> bool:
         if not self.sub_process_alive():
-            logger.info(f"[MTX] starting MediaMTX {os.getenv('MTX_TAG')}")
+            logger.info(f"[MTX] starting MediaMTX {MTX_TAG}")
             self.sub_process = Popen(["./mediamtx", "./mediamtx.yml"], stdout=None, stderr=None) # None means inherit from parent process
         return self.sub_process_alive()
 
@@ -267,7 +268,7 @@ def generate_certificates(cert_path):
         ).wait()
     if not Path(f"{cert_path}.crt").is_file():
         logger.info("[MTX] 🔏 Generating certificate for LL-HLS")
-        dns = os.getenv("SUBJECT_ALT_NAME")
+        dns = SUBJECT_ALT_NAME
         Popen(
             ["openssl", "req", "-new", "-x509", "-sha256"]
             + ["-key", f"{cert_path}.key"]
