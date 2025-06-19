@@ -40,6 +40,7 @@ WEBRTC_URL: str = env_bool("WB_WEBRTC_URL").strip("/")
 LLHLS: bool = env_bool("LLHLS", style="bool")
 SUBJECT_ALT_NAME: str = env_bool("SUBJECT_ALT_NAME", style="original")
 COOLDOWN: int = env_bool("OFFLINE_TIME", "10", style="int")
+DISABLE_CONTROL: bool = env_bool("DISABLE_CONTROL", style="bool")
 
 MOTION: bool = env_bool("MOTION_API", style="bool")
 MOTION_INT: int = max(env_bool("MOTION_INT", "1.5", style="float"), 1.1)

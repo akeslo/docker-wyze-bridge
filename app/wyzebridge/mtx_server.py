@@ -1,3 +1,4 @@
+import contextlib
 from datetime import datetime
 import os
 from pathlib import Path
@@ -188,8 +189,9 @@ class MtxServer:
             return
         if self.sub_process.poll() is None:
             logger.info("[MTX] Stopping MediaMTX...")
-            self.sub_process.send_signal(SIGTERM)
-            self.sub_process.communicate()
+            with contextlib.suppress(ValueError, AttributeError, RuntimeError):
+                self.sub_process.terminate()
+                self.sub_process.communicate()
         self.sub_process = None
 
     def restart(self) -> bool:
@@ -197,7 +199,7 @@ class MtxServer:
         return self.start()
 
     def health_check(self) -> bool:
-        if not self.sub_process_alive() and self.sub_process is not None:
+        if self.sub_process is not None and not self.sub_process_alive():
             logger.error(f"[MediaMTX] Process exited with {self.sub_process.poll()}")
             self.restart()
 

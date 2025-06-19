@@ -8,7 +8,7 @@ from typing import  Callable, Optional
 from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.stream import Stream
 from wyzebridge.config import MOTION, MQTT_DISCOVERY, SNAPSHOT_TYPE
-from wyzebridge.ffmpeg import rtsp_snap_cmd
+from wyzebridge.ffmpeg import rtsp_snap_cmd, wait_for_purges
 from wyzebridge.logging import logger
 from wyzebridge.mqtt import bridge_status, cam_control, publish_topic, update_preview
 from wyzebridge.mtx_event import RtspEvent
@@ -16,7 +16,7 @@ from wyzebridge.wyze_events import WyzeEvents
 from wyzebridge.bridge_utils_sunset import should_take_snapshot, should_skip_snapshot
 
 class StreamManager:
-    __slots__ = "api", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "thread"
+    __slots__ = "api", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "monitor_snapshots_thread"
 
     def __init__(self, api: WyzeApi):
         self.api: WyzeApi = api
@@ -24,7 +24,7 @@ class StreamManager:
         self.streams: dict[str, Stream] = {}
         self.rtsp_snapshots: dict[str, Popen] = {}
         self.last_snap: float = 0
-        self.thread: Optional[Thread] = None
+        self.monitor_snapshots_thread: Optional[Thread] = None
 
     @property
     def total(self):
@@ -55,17 +55,19 @@ class StreamManager:
         for stream in self.streams.values():
             stream.stop()
 
-        if self.thread and self.thread.is_alive():
-            with contextlib.suppress(AttributeError, KeyError):
-                self.thread.join()
+        if self.monitor_snapshots_thread is not None:
+            logger.info("[STREAM] Stopping monitor_snapshots thread")
+            with contextlib.suppress(ValueError, AttributeError, RuntimeError):
+                self.monitor_snapshots_thread.join(timeout=5)
+            self.monitor_snapshots_thread = None
+                
+        wait_for_purges()
 
     def monitor_streams(self, mtx_health: Callable) -> None:
         self.stop_flag = False
 
         if MQTT_DISCOVERY:
-            self.thread = Thread(target=self.monitor_snapshots)
-            self.thread.daemon = True # allow this thread to be abandoned
-            self.thread.start()
+            self.monitor_snapshots()
 
         mqtt = cam_control(self.streams, self.send_cmd)
         logger.info(f"🎬 {self.total} stream{'s'[:self.total^1]} enabled")
@@ -84,27 +86,47 @@ class StreamManager:
                 bridge_status(mqtt)
 
         if mqtt:
-            logger.info("[MQTT] Stopping")
+            logger.info("[STREAM] Stopping mqtt loop")
             mqtt.loop_stop()
+            mqtt = None
 
         logger.info("[STREAM] Stream monitoring stopped")
 
     def monitor_snapshots(self) -> None:
-        for cam in self.streams:
-            update_preview(cam)
-
-        while not self.stop_flag:
-            for cam, ffmpeg in list(self.rtsp_snapshots.items()):
-                if ffmpeg is not None and (returncode := ffmpeg.returncode) is not None:
-                    if returncode == 0:
+        def wrapped():
+            logger.info("[STREAM] Starting monitor_snapshots thread")
+            try:
+                # emit to MQTT the current snapshots on file system
+                for cam in self.streams:
+                    if not self.stop_flag:
                         update_preview(cam)
-                    # we have some response, remove from queue
-                    self.remove_from_rtsp_snapshots(cam)
-            time.sleep(1)
 
-    def remove_from_rtsp_snapshots(self, cam):
+                while not self.stop_flag:
+                    for cam, ffmpeg in list(self.rtsp_snapshots.items()):
+                        if not self.stop_flag and ffmpeg is not None and (returncode := ffmpeg.returncode) is not None:
+                            if returncode == 0:
+                                update_preview(cam)
+                            # we have some response, remove from queue
+                            self.remove_from_rtsp_snapshots(cam)
+                    time.sleep(1)
+            except Exception as e:
+                logger.error(f"[STREAM] Unexpected error in monitor_snapshots: {e}")
+
+        if self.monitor_snapshots_thread is not None:
+            logger.info("[STREAM] Stopping previous monitor_snapshots thread")
+            with contextlib.suppress(ValueError, AttributeError, RuntimeError):
+                self.monitor_snapshots_thread.join(timeout=5)
+            self.monitor_snapshots_thread = None
+                
+        self.monitor_snapshots_thread = Thread(target=wrapped, name="monitor_snapshots")
+        self.monitor_snapshots_thread.daemon = True # allow this thread to be abandoned
+        self.monitor_snapshots_thread.start()
+        
+    def remove_from_rtsp_snapshots(self, cam: str):
         try:
             del self.rtsp_snapshots[cam]
+        except KeyError:
+            logger.warning(f"[STREAM] {cam} not found in rtsp snapshots.")
         except Exception as ex:
             logger.error(f"[STREAM] [{type(ex).__name__}] removing {cam=} {ex}.")
 
@@ -128,27 +150,16 @@ class StreamManager:
         - cams (list[str], optional): names of the streams to take a snapshot of.
         - force (bool, optional): Ignore interval and force snapshot. Defaults to False.
         """
-        if force or self._should_snap():
+        if force or should_take_snapshot(SNAPSHOT_TYPE, self.last_snap):
             self.last_snap = time.time()
-            for cam in cams or self.active_streams():
-                if should_skip_snapshot(cam):
+            for cam_name in cams or self.active_streams():
+                if should_skip_snapshot(cam_name):
                     continue
                 if SNAPSHOT_TYPE == "rtsp":
-                    stop_subprocess(self.rtsp_snapshots.get(cam))
-                    self.rtsp_snap_popen(cam, True)
+                    self.stop_subprocess(cam_name)
+                    self.rtsp_snap_popen(cam_name, True)
                 elif SNAPSHOT_TYPE == "api":
-                    self.api.save_thumbnail(cam, "")
-
-    def _should_snap(self):
-        """
-        Determines whether a snapshot should be taken based on the interval, which can change on sunrise/sunset
-        
-        Returns:
-        - bool: True if a snapshot should be taken, False otherwise.
-        """
-        if not should_take_snapshot(SNAPSHOT_TYPE, self.last_snap):
-            return False
-        return True
+                    self.api.save_thumbnail(cam_name, "")
 
     def get_sse_status(self) -> dict:
         return {
@@ -186,9 +197,9 @@ class StreamManager:
                 status = json.dumps(status)
 
             if "update_snapshot" in cam_resp:
-                demanded = not stream.connected
+                demand_opened = not stream.connected
                 snap = self.get_rtsp_snap(cam_name)
-                if demanded:
+                if demand_opened:
                     stream.stop()
 
                 publish_topic(f"{cam_name}/{cmd}", int(time.time()) if snap else 0)
@@ -221,11 +232,16 @@ class StreamManager:
             logger.info(f"❗ [{cam_name}] Snapshot timed out")
         except Exception as ex:
             logger.error(f"❗ [{cam_name}] [{type(ex).__name__}] {ex}")
-
-        stop_subprocess(ffmpeg)
+        finally:
+            self.stop_subprocess(cam_name)
         return False
 
-def stop_subprocess(ffmpeg: Optional[Popen]):
-    if ffmpeg and ffmpeg.poll() is None:
-        ffmpeg.kill()
-        ffmpeg.communicate()
+    def stop_subprocess(self, cam: str):
+        ffmpeg = self.rtsp_snapshots.get(cam)
+
+        if ffmpeg is not None:
+            self.remove_from_rtsp_snapshots(cam)
+
+            if ffmpeg.poll() is None:
+                ffmpeg.kill()
+                ffmpeg.communicate()
