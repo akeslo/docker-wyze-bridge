@@ -1,10 +1,12 @@
+import contextlib
 import os
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-import threading
+from threading import Thread
 from typing import Optional
 
+from threads import AutoRemoveThread
 from wyzebridge.bridge_utils import LIVESTREAM_PLATFORMS, env_bool, env_cam
 from wyzebridge.config import IMG_PATH, IMG_TYPE, SNAPSHOT_FORMAT
 from wyzebridge.logging import logger
@@ -183,7 +185,13 @@ def get_livestream_cmd(uri: str) -> str:
 
     return ""
 
+purges_running = dict[str, Thread]()
+
 def purge_old(base_path: str, extension: str, keep_time: timedelta):
+    if purges_running.get(base_path):   # extension will always be the same, so we can just use base_path
+        logger.debug(f"[FFMPEG] Purge already running for {base_path}")
+        return
+
     def wrapped():
         try:
             threshold = datetime.now() - keep_time
@@ -202,6 +210,9 @@ def purge_old(base_path: str, extension: str, keep_time: timedelta):
                 while len(parents) > 0:
                     parent = parents.pop()
                     directory_remove_if_empty(parent)
+
+            except FileNotFoundError:
+                pass
             except OSError as e:
                 logger.error(f"[FFMPEG] Error accessing {base_path}/*{extension}: {e}")
             except RecursionError as e:
@@ -209,9 +220,18 @@ def purge_old(base_path: str, extension: str, keep_time: timedelta):
         except Exception as e:
             logger.error(f"[FFMPEG] Unexpected error in purge_old: {e}")
 
-    thread = threading.Thread(target=wrapped)
+    thread = AutoRemoveThread(purges_running, base_path, target=wrapped, name=f"{base_path}_purge")
     thread.daemon = True  # Set thread as daemon
     thread.start()
+
+def wait_for_purges():
+    logger.debug("[FFMPEG] Waiting for all purge threads to complete.")
+    for thread in purges_running.values():
+        with contextlib.suppress(ValueError, AttributeError, RuntimeError):
+            thread.join(timeout=30)
+
+    purges_running.clear()  # Clear the dictionary after waiting
+    logger.debug("[FFMPEG] All purge threads have completed.")
 
 def file_modified(file_path: Path) -> float:
     try:

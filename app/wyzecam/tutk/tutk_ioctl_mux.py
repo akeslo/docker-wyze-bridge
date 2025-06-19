@@ -1,6 +1,6 @@
 import contextlib
 import logging
-import threading
+from threading import Thread, Lock
 from collections import defaultdict
 from ctypes import CDLL, c_int, c_uint
 from queue import Empty, Queue
@@ -96,7 +96,7 @@ class TutkIOCtrlMux:
     """
 
     __slots__ = "tutk_platform_lib", "av_chan_id", "queues", "listener", "block"
-    _context_lock = threading.Lock()
+    _context_lock = Lock()
 
     def __init__(
         self, tutk_platform_lib: CDLL, av_chan_id: c_int, block: bool = True
@@ -144,7 +144,8 @@ class TutkIOCtrlMux:
         See: [wyzecam.tutk.tutk_ioctl_mux.TutkIOCtrlMux.start_listening][]
         """
         self.queues[CONTROL_CHANNEL].put(STOP_SENTINEL)
-        self.listener.join()
+        with contextlib.suppress(ValueError, AttributeError, RuntimeError):
+            self.listener.join(timeout=60)
         TutkIOCtrlMux._context_lock.release()
 
     def __enter__(self):
@@ -190,7 +191,7 @@ class TutkIOCtrlMux:
 
         return TutkIOCtrlFuture(msg, self.queues[msg.expected_response_code])
 
-class TutkIOCtrlMuxListener(threading.Thread):
+class TutkIOCtrlMuxListener(Thread):
     __slots__ = "tutk_platform_lib", "av_chan_id", "queues", "exception"
 
     def __init__(

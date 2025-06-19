@@ -36,7 +36,7 @@ class RtspEvent:
         self.open_pipe()
         try:
             if select.select([self.pipe], [], [], timeout)[0]:
-                if data := os.read(self.pipe, 128):
+                if data := os.read(self.pipe, 4096):
                     self.process_data(data.decode())
         except OSError as ex:
             self.pipe = 0
