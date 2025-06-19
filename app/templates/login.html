@@ -24,7 +24,7 @@
             <div class="field">
                 <label for="" class="label">Email</label>
                 <div class="control has-icons-left">
-                    <input name="email" type="email" placeholder="e.g. me@mail.com" class="input" required>
+                    <input name="email" type="email" placeholder="e.g. me@mail.com" class="input" required autofocus />
                     <span class="icon is-small is-left">
                         <i class="fa fa-envelope"></i>
                     </span>
@@ -33,7 +33,7 @@
             <div class="field">
                 <label for="" class="label">Password</label>
                 <div class="control has-icons-left">
-                    <input name="password" type="password" placeholder="*******" class="input" required>
+                    <input name="password" type="password" placeholder="*******" class="input" required />
                     <span class="icon is-small is-left">
                         <i class="fa fa-lock"></i>
                     </span>
@@ -42,8 +42,8 @@
             <div class="field">
                 <label for="" class="label">API ID</label>
                 <div class="control has-icons-left">
-                    <input name="keyId" type="text" placeholder="Key ID" class="input" pattern=".{36}"
-                        title="Key ID is 36 characters" required>
+                    <input name="keyId" type="text" placeholder="Key ID" class="input" pattern="[a-fA-F0-9-]{36}"
+                        title="Key ID is 36 characters like 0a1b2c4d-5e6f-0a1b-2c3d-4a5b6d7e8f9a" required />
                     <span class="icon is-small is-left">
                         <i class="fa fa-fingerprint"></i>
                     </span>
@@ -52,8 +52,8 @@
             <div class="field">
                 <label for="" class="label">API Key</label>
                 <div class="control has-icons-left">
-                    <input name="apiKey" type="text" placeholder="API Key" class="input" pattern=".{60}"
-                        title="API Key is 60 characters" required>
+                    <input name="apiKey" type="text" placeholder="API Key" class="input" pattern="[a-zA-Z0-9]{60}"
+                        title="API Key is 60 characters like kX7nPqW3zT9mL2rY6vJ8hF4tB1cD5xG0pNueAiwZoSyQjMblRfdH2aK9vCnd" required />
                     <span class="icon is-small is-left">
                         <i class="fa fa-key"></i>
                     </span>
