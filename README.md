@@ -55,6 +55,19 @@ You can then use the web interface at `http://localhost:5050` where `localhost` 
 
 See [basic usage](#basic-usage) for additional information or visit the [wiki page](https://github.com/idisposable/docker-wyze-bridge/wiki/Home-Assistant) for additional information on using the bridge as a Home Assistant Add-on.
 
+## What's Changed in v3.12.3
+
+Cleaned up the threading logic around startup/shutdown to reduce CPU and memory leaks
+
+- Added validation checks for the API Key ID and API Key to help prevent issues logging in Fixes #47
+- Cleaned up the thread and process tracking to ensure that we release threads when they're done
+- Only allow one running purge thread per camera Fixes #40
+- Added timeouts to all the thread `.join()`s to ensure we don't hang waiting for threads to die off
+- Increased the buffer site for the pipe reads to reduce CPU load
+- Consistently swallow ValueError, AttributeError, RuntimeError, and FileNotFound errors so sub-processes and threads terminate correctly
+
+Note: v3.12.2 was everything above, but missing the change notes, oops.
+
 ## What's Changed in v3.12.1
 
 Cleaned MQTT logic and pull in some others' changes
