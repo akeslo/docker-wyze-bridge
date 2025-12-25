@@ -73,7 +73,6 @@ schema:
   REFRESH_TOKEN: str?
   ACCESS_TOKEN: str?
   TOTP_KEY: str?
-  NET_MODE: list(LAN|P2P|ANY)?
   SNAPSHOT: list(API|RTSP|RTSP15|RTSP30|RTSP60|RTSP180|RTSP300|Disable)?
   SNAPSHOT_FORMAT: str?
   SNAPSHOT_KEEP: str?
@@ -106,7 +105,6 @@ schema:
   FILTER_MODELS: str?
   FILTER_MACS: str?
   FILTER_BLOCK: bool?
-  ROTATE_DOOR: bool?
   H264_ENC: str?
   FORCE_ENCODE: bool?
   IGNORE_OFFLINE: bool?
@@ -137,8 +135,6 @@ schema:
       AUDIO: bool?
       FFMPEG: str?
       LIVESTREAM: str?
-      NET_MODE: str?
-      ROTATE: bool?
       QUALITY: str?
       SUB_QUALITY: str?
       FORCE_FPS: int?

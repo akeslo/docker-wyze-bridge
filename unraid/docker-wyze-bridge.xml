@@ -59,7 +59,6 @@
   <Config Name="Refresh token for Wyze API" Target="REFRESH_TOKEN" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="Access token for Wyze API" Target="ACCESS_TOKEN" Default="" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="true"/>
   <Config Name="TOTP Key for 2FA" Target="TOTP_KEY" Default="" Mode="" Description="DEPRECATED" Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Allowed Net Modes" Target="NET_MODE" Default="ANY" Mode="" Description="How can the cameras be accessed (local LAN, P2P, or either)" Type="Variable" Display="advanced" Required="false" Mask="false">ANY</Config>
   <Config Name="Snapshot Mode" Target="SNAPSHOT" Default="Disable" Mode="" Description="Disable, API or RTSP (optionally followed by number of seconds interval)" Type="Variable" Display="advanced" Required="false" Mask="false">Disable</Config>
   <Config Name="Snapshot File Name Pattern" Target="SNAPSHOT_FORMAT" Default="" Mode="" Description="Use python timeformat tokens" Type="Variable" Display="advanced" Required="false" Mask="false">{cam_name}/%Y/%m/%d/%H-%M.png</Config>
   <Config Name="Snapshot Retention" Target="SNAPSHOT_KEEP" Default="" Mode="" Description="Number followed by s (for seconds), m (for minutes), etc." Type="Variable" Display="advanced" Required="false" Mask="false">jpg</Config>
@@ -92,7 +91,6 @@
   <Config Name="Filter cameras by camera model" Target="FILTER_MODELS" Default="" Mode="" Description="If not blank only the cameras models named will be managed" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Filter cameras by MAC address" Target="FILTER_MACS" Default="" Mode="" Description="If not blank only the cameras with matching MAC will be managed" Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Invert Filter" Target="FILTER_BLOCK" Default="False" Mode="" Description="Block cameras in filter lists (instead of enabling)" Type="Variable" Display="advanced" Required="false" Mask="false"/>
-  <Config Name="Rotate Doorbell" Target="ROTATE_DOOR" Default="False" Mode="" Description="Will rotate video 90 degrees clockwise." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="H.264 Encoder" Target="H264_ENC" Default="" Mode="" Description="Specify a hardware encoder for FFmpeg" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Force Re-encoding" Target="FORCE_ENCODE" Default="" Mode="" Description="Ensure the streams are encoded in compatible format" Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Ignore Offline Camera" Target="IGNORE_OFFLINE" Default="False" Mode="" Description="" Type="Variable" Display="advanced" Required="false" Mask="false"/>

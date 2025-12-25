@@ -28,7 +28,6 @@ Camera specific options can now be passed to the bridge using `CAM_OPTIONS`. To 
 ```YAML
 - CAM_NAME: Front
   AUDIO: true
-  ROTATE: true
 - CAM_NAME: Back door
   QUALITY: SD50
   RECORD: true
@@ -39,8 +38,6 @@ Available options:
 - `AUDIO` - Enable audio for this camera.
 - `FFMPEG` - Use a custom ffmpeg command for this camera.
 - `LIVESTREAM` - Specify a rtmp url to livestream to for this camera.
-- `NET_MODE` - Change the allowed net mode for this camera only.
-- `ROTATE` - Rotate this camera 90 degrees clockwise.
 - `QUALITY` - Adjust the quality for this camera only.
 - `SUB_QUALITY` - Adjust the quality for this camera's substream.
 - `FORCE_FPS` - Sets the frames-per-second for this camera.

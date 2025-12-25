@@ -1,20 +1,19 @@
+"""Main Wyze Bridge application - using go2rtc for WebRTC-to-RTSP."""
 from os import makedirs
-import signal
+import signal  # Force rebuild
 import sys
-from dataclasses import replace
 from threading import Thread
 
 from wyzebridge.build_config import BUILD_STR, VERSION
-from wyzebridge.config import BRIDGE_IP, HASS_TOKEN, IMG_PATH, LLHLS, ON_DEMAND, STREAM_AUTH, TOKEN_PATH
+from wyzebridge.config import HASS_TOKEN, IMG_PATH, TOKEN_PATH
 from wyzebridge.auth import WbAuth
-from wyzebridge.bridge_utils import env_bool, env_cam, is_livestream, migrate_path
+from wyzebridge.bridge_utils import migrate_path
 from wyzebridge.hass import setup_hass
 from wyzebridge.logging import logger
-from wyzebridge.mtx_server import MtxServer
-from wyzebridge.stream_manager import StreamManager
 from wyzebridge.wyze_api import WyzeApi
-from wyzebridge.wyze_stream import WyzeStream, WyzeStreamOptions
-from wyzecam.api_models import WyzeAccount, WyzeCamera
+from wyzebridge.snapshot_manager import SnapshotManager
+from wyzebridge.go2rtc_server import Go2RtcServer
+from wyzecam.api_models import WyzeCamera
 
 setup_hass(HASS_TOKEN)
 
@@ -24,8 +23,11 @@ makedirs(IMG_PATH, exist_ok=True)
 if HASS_TOKEN:
     migrate_path("/config/wyze-bridge/", "/config/")
 
+
 class WyzeBridge(Thread):
-    __slots__ = "api", "streams", "mtx"
+    """Main bridge class - handles Wyze auth and go2rtc stream management."""
+    
+    __slots__ = "api", "cameras", "go2rtc", "snapshots"
 
     def __init__(self) -> None:
         Thread.__init__(self)
@@ -33,103 +35,104 @@ class WyzeBridge(Thread):
         for sig in ["SIGTERM", "SIGINT"]:
             signal.signal(getattr(signal, sig), self.clean_up)
 
-        print(f"\n🚀 DOCKER-WYZE-BRIDGE v{VERSION} {BUILD_STR}\n")
+        print(f"\n🚀 DOCKER-WYZE-BRIDGE {VERSION} {BUILD_STR} (go2rtc WebRTC-to-RTSP Bridge)\n")
         self.api: WyzeApi = WyzeApi()
-        self.streams: StreamManager = StreamManager(self.api)
-        self.mtx: MtxServer = MtxServer()
-        self.mtx.setup_webrtc(BRIDGE_IP)
-        if LLHLS:
-            self.mtx.setup_llhls(TOKEN_PATH, bool(HASS_TOKEN))
+        self.cameras: dict[str, WyzeCamera] = {}
+        self.go2rtc: Go2RtcServer = Go2RtcServer()
+        self.snapshots: SnapshotManager = None
 
     def health(self):
-        mtx_alive = self.mtx.sub_process_alive()
-        active_streams = len(self.streams.active_streams())
-        wyze_authed = self.api.auth is not None and self.api.auth.access_token is not None
-        return { "mtx_alive": mtx_alive , "wyze_authed": wyze_authed, "active_streams": active_streams }
+        """Return health status for /health endpoint."""
+        return {
+            "wyze_authed": self.api.auth is not None and self.api.auth.access_token is not None,
+            "camera_count": len(self.cameras),
+            "go2rtc_running": self.go2rtc.is_running(),
+            "snapshots_running": self.snapshots and self.snapshots.is_alive(),
+        }
 
-    def run(self, fresh_data: bool = False) -> None:
+    def start(self, fresh_data: bool = False) -> None:
+        """Initialize the bridge synchronously."""
         self._initialize(fresh_data)
 
+    def run(self, fresh_data: bool = False) -> None:
+        """Initialize and run the bridge in thread mode."""
+        self._initialize(fresh_data)
+        while True:
+            signal.pause()
+
     def _initialize(self, fresh_data: bool = False) -> None:
+        """Login, setup cameras, configure and start go2rtc."""
         self.api.login(fresh_data=fresh_data)
         WbAuth.set_email(email=self.api.get_user().email, force=fresh_data)
-        self.mtx.setup_auth(WbAuth.api, STREAM_AUTH)
-        self.setup_streams()
-        if self.streams.total < 1:
+
+        # Discover cameras and configure go2rtc
+        self.setup_cameras()
+
+        if len(self.cameras) < 1:
+            logger.warning("[BRIDGE] No WebRTC-compatible cameras found!")
             return signal.raise_signal(signal.SIGINT)
-        
-        if logger.getEffectiveLevel() == 10: #if we're at debug level
-            logger.debug(f"[BRIDGE] MTX config:\n{self.mtx.dump_config()}")
-            
-        self.mtx.start()
-        self.streams.monitor_streams(self.mtx.health_check)
+
+        # Start go2rtc with configured streams
+        if not self.go2rtc.start():
+            logger.error("[BRIDGE] Failed to start go2rtc")
+            return signal.raise_signal(signal.SIGINT)
+
+        logger.info(f"🎬 {len(self.cameras)} camera(s) ready for streaming")
+        logger.info(f"📺 RTSP streams available at rtsp://HOST:8554/<camera-name>")
+
+        # Start snapshot manager
+        try:
+            self.snapshots = SnapshotManager(self.cameras)
+            self.snapshots.start()
+        except Exception as e:
+            logger.error(f"Failed to start snapshot manager: {e}")
 
     def restart(self, fresh_data: bool = False) -> None:
-        self.mtx.stop()
-        self.streams.stop_all()
+        """Restart the bridge and refresh camera list."""
+        if self.snapshots:
+            self.snapshots.stop()
+        self.go2rtc.stop()
+        self.cameras.clear()
         self._initialize(fresh_data)
 
     def refresh_cams(self) -> None:
-        self.mtx.stop()
-        self.streams.stop_all()
+        """Refresh camera list from Wyze API."""
+        if self.snapshots:
+            self.snapshots.stop()
+        self.go2rtc.stop()
+        self.cameras.clear()
         self.api.get_cameras(fresh_data=True)
         self._initialize(False)
 
-    def setup_streams(self):
-        """Gather and setup streams for each camera."""
-        user = self.api.get_user()
-
+    def setup_cameras(self):
+        """Discover cameras and configure go2rtc streams."""
         for cam in self.api.filtered_cams():
+            if not cam.webrtc_support:
+                logger.warning(f"[!] {cam.nickname} [{cam.product_model}] does not support WebRTC - SKIPPING")
+                continue
+
             logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}] at {cam.name_uri}")
+            self.cameras[cam.name_uri] = cam
 
-            options = WyzeStreamOptions(
-                quality=env_cam("quality", cam.name_uri),
-                audio=bool(env_cam("enable_audio", cam.name_uri)),
-                record=bool(env_cam("record", cam.name_uri)),
-                reconnect=(not ON_DEMAND) or is_livestream(cam.name_uri),
-            )
+            # go2rtc will use our Flask signaling endpoint
+            # Format: webrtc:http://127.0.0.1:5000/signaling/<cam>?kvs#format=wyze
+            signaling_url = f"http://127.0.0.1:5000/signaling/{cam.name_uri}?kvs"
+            self.go2rtc.add_camera(cam.name_uri, signaling_url)
 
-            stream = WyzeStream(user, self.api, cam, options)
-            stream.rtsp_fw_enabled = self.rtsp_fw_proxy(cam, stream)
-            self.mtx.add_path(stream.uri, not options.reconnect)
-            self.streams.add(stream)
-
-            if env_cam("record", cam.name_uri):
-                self.mtx.record(stream.uri)
-
-            self.add_substream(user, self.api, cam, options)
-
-    def rtsp_fw_proxy(self, cam: WyzeCamera, stream: WyzeStream) -> bool:
-        if rtsp_fw := env_bool("rtsp_fw").lower():
-            if rtsp_path := stream.check_rtsp_fw(rtsp_fw == "force"):
-                rtsp_uri = f"{cam.name_uri}-fw"
-                logger.info(f"[-->] Adding /{rtsp_uri} as a source")
-                self.mtx.add_source(rtsp_uri, rtsp_path)
-                return True
-        return False
-
-    def add_substream(self, user: WyzeAccount, api: WyzeApi, cam: WyzeCamera, options: WyzeStreamOptions):
-        """Setup and add substream if enabled for camera."""
-        if env_bool(f"SUBSTREAM_{cam.name_uri}") or (
-            env_bool("SUBSTREAM") and cam.can_substream
-        ):
-            quality = env_cam("sub_quality", cam.name_uri, "sd30")
-            record = bool(env_cam("sub_record", cam.name_uri))
-            sub_opt = replace(options, substream=True, quality=quality, record=record)
-            logger.info(f"[++] Adding {cam.name_uri} substream quality: {quality} record: {record}")
-            sub = WyzeStream(user, api, cam, sub_opt)
-            self.mtx.add_path(sub.uri, not options.reconnect)
-            self.streams.add(sub)
+    def get_kvs_signal(self, cam_name: str) -> dict:
+        """Get KVS signaling data for a camera (used by go2rtc)."""
+        return self.api.get_kvs_signal(cam_name)
 
     def clean_up(self, *_):
-        """Stop all streams and clean up before shutdown."""
-        if self.streams.stop_flag:
-            sys.exit(0)
-        if self.streams:
-            self.streams.stop_all()
-        self.mtx.stop()
-        logger.info("👋 goodbye!")
+        """Clean up before shutdown."""
+        logger.info("👋 Shutting down...")
+        if self.snapshots:
+            self.snapshots.stop()
+        if hasattr(self, 'go2rtc'):
+            self.go2rtc.stop()
         sys.exit(0)
+
+
 
 if __name__ == "__main__":
     wb = WyzeBridge()

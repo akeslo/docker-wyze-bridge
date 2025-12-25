@@ -1,0 +1,27 @@
+services:
+    wyze-bridge:
+        container_name: wyze-bridge
+        image: ghcr.io/akeslo/docker-wyze-bridge:latest
+        restart: unless-stopped
+        ports:
+            - 1984:1984 # go2rtc UI/API
+            - 8554:8554 # RTSP
+            - 8555:8555 # WebRTC
+            - 5000:5000 # WEB-UI
+        volumes:
+            - /mnt/storage/container_data/wyze-bridge/snapshots:/img
+            - /mnt/storage/container_data/wyze-bridge/config:/config
+            - /etc/localtime:/etc/localtime:ro
+        environment:
+            - WYZE_EMAIL=${WYZE_EMAIL}
+            - WYZE_PASSWORD=${WYZE_PASSWORD}
+            - API_ID=${API_ID}
+            - API_KEY=${API_KEY}
+            - WB_AUTH=False
+            - SNAPSHOT=180
+            - SNAPSHOT_FORMAT={cam_name}/%Y-%m-%d/%H-%M-%S.jpg
+            - SNAPSHOT_KEEP=7d
+x-dockge:
+    urls:
+        - http://192.168.3.116:5000
+networks: {}

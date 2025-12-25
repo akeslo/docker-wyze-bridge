@@ -3,6 +3,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
+from threading import Thread
 from urllib.parse import quote_plus
 
 from flask import (
@@ -25,12 +26,8 @@ from wyzebridge.web_ui import url_for
 def create_app():
     app = Flask(__name__)
     wb = WyzeBridge()
-    try:
-        wb.start()
-    except RuntimeError as ex:
-        print(ex)
-        print("Please ensure your host is up to date.")
-        exit()
+    # Start bridge initialization in background thread so Flask can start even if auth fails
+    Thread(target=wb._initialize, kwargs={"fresh_data": False}, daemon=True).start()
 
     def auth_required(view):
         @wraps(view)
@@ -83,41 +80,51 @@ def create_app():
 
         number_of_columns = int(columns) if columns.isdigit() else 0
         refresh_period = int(refresh) if refresh.isdigit() else 0
-        show_video = bool(request.cookies.get("show_video"))
-        autoplay = bool(request.cookies.get("autoplay"))
-    
-        if "autoplay" in request.args:
-            autoplay = True
-    
+        show_video = bool(request.cookies.get("show_video", "1"))
+
         if "video" in request.args:
             show_video = True
         elif "snapshot" in request.args:
             show_video = False
 
-        video_format = request.cookies.get("video", "webrtc")
-
-        if req_video := ({"webrtc", "hls", "kvs"} & set(request.args)):
-            video_format = req_video.pop()
+        # Format camera data for WebUI
+        cam_data = {
+            uri: {
+                "name_uri": uri,
+                "nickname": cam.nickname,
+                "product_model": cam.product_model,
+                "model_name": cam.model_name,
+                "webrtc_support": cam.webrtc_support,
+                "webrtc": cam.webrtc_support,  # For template compatibility
+                "enabled": True,  # go2rtc handles on-demand
+                "online": cam.ip is not None,
+                "connected": True,  # go2rtc handles connections
+                "img_url": f"/thumb/{uri}.jpg",
+                "webrtc_url": f"/webrtc/{uri}",
+                "rtsp_url": f"rtsp://{request.host.split(':')[0]}:8554/{uri}",
+                "mac": cam.mac,
+                "firmware_ver": cam.firmware_ver,
+                "is_battery": cam.is_battery,
+                "camera_info": cam.camera_info,
+                "substream": False,  # No substreams in KVS mode
+                "on_demand": False,  # Always available in KVS mode
+            }
+            for uri, cam in wb.cameras.items()
+        }
 
         resp = make_response(
             render_template(
-                "index.html",
-                cam_data=web_ui.all_cams(wb.streams, wb.api.total_cams),
-                number_of_columns=number_of_columns,
-                refresh_period=refresh_period,
+                "index_kvs.html",
+                cam_data=cam_data,
+                total_cams=len(wb.cameras),
                 api=WbAuth.api,
                 version=VERSION,
-                webrtc=bool(config.BRIDGE_IP),
-                show_video=show_video,
-                video_format=video_format.lower(),
-                autoplay=autoplay,
             )
         )
 
         resp.set_cookie("number_of_columns", str(number_of_columns))
         resp.set_cookie("refresh_period", str(refresh_period))
         resp.set_cookie("show_video", "1" if show_video else "")
-        resp.set_cookie("video", video_format)
         fullscreen = "fullscreen" in request.args or bool(
             request.cookies.get("fullscreen")
         )
@@ -137,48 +144,81 @@ def create_app():
     @auth_required
     def sse_status():
         """Server sent event for camera status."""
+        def get_status():
+            return {
+                uri: {"status": "online" if cam.ip else "offline", "motion": 0}
+                for uri, cam in wb.cameras.items()
+            }
         return Response(
-            web_ui.sse_generator(wb.streams.get_sse_status),
+            web_ui.sse_generator(get_status),
             mimetype="text/event-stream",
         )
 
     @app.route("/api")
     @auth_required
     def api_all_cams():
-        return web_ui.all_cams(wb.streams, wb.api.total_cams)
+        return {
+            uri: {
+                "name_uri": uri,
+                "nickname": cam.nickname,
+                "product_model": cam.product_model,
+                "webrtc_support": cam.webrtc_support,
+                "online": cam.ip is not None,
+            }
+            for uri, cam in wb.cameras.items()
+        }
 
     @app.route("/api/<string:cam_name>")
     @auth_required
     def api_cam(cam_name: str):
-        if cam := wb.streams.get_info(cam_name):
-            return cam | web_ui.format_stream(cam_name)
+        if cam := wb.cameras.get(cam_name):
+            return {
+                "name_uri": cam_name,
+                "nickname": cam.nickname,
+                "product_model": cam.product_model,
+                "webrtc_support": cam.webrtc_support,
+                "webrtc_url": f"/webrtc/{cam_name}",
+                "rtsp_url": f"rtsp://{request.host.split(':')[0]}:8554/{cam_name}",
+                "img_url": f"/thumb/{cam_name}.jpg",
+                "mac": cam.mac,
+                "online": cam.ip is not None,
+            }
         return {"error": f"Could not find camera [{cam_name}]"}
+
+    @app.route("/api/<cam_name>/rtsp")
+    @auth_required
+    def api_rtsp_url(cam_name: str):
+        return {"rtsp_url": f"rtsp://{request.host.split(':')[0]}:8554/{cam_name}"}
+
+    @app.route("/api/<cam_name>/start", methods=["POST"])
+    @auth_required
+    def api_start_stream(cam_name: str):
+        # go2rtc handles on-demand streaming automatically
+        if cam_name in wb.cameras:
+            return {"status": "started", "note": "go2rtc handles on-demand"}
+        return {"error": "Camera not found"}
+
+    @app.route("/api/<cam_name>/stop", methods=["POST"])
+    @auth_required
+    def api_stop_stream(cam_name: str):
+        # go2rtc handles on-demand streaming automatically
+        if cam_name in wb.cameras:
+            return {"status": "stopped", "note": "go2rtc handles on-demand"}
+        return {"error": "Camera not found"}
 
     @app.route("/api/<cam_name>/<cam_cmd>", methods=["GET", "PUT", "POST"])
     @app.route("/api/<cam_name>/<cam_cmd>/<path:payload>")
     @auth_required
     def api_cam_control(cam_name: str, cam_cmd: str, payload: str | dict = ""):
-        """API Endpoint to send tutk commands to the camera."""
-        if not payload and (args := request.values.to_dict()):
-            args.pop("api", None)
-            payload = next(iter(args.values())) if len(args) == 1 else args
-        if not payload and request.is_json:
-            json = request.get_json()
-            if isinstance(json, dict):
-                payload = json if len(json) > 1 else list(json.values())[0]
-            else:
-                payload = json
-        elif not payload and request.data:
-            payload = request.data.decode()
-
-        return wb.streams.send_cmd(cam_name, cam_cmd.lower(), payload)
+        """Limited camera control via cloud API only."""
+        # KVS WebRTC mode: no TUTK connection, limited cloud API control
+        return {"error": "Camera control not supported in WebRTC-only mode", "command": cam_cmd}
 
     @app.route("/signaling/<string:name>")
     @auth_required
     def webrtc_signaling(name):
-        if "kvs" in request.args:
-            return wb.api.get_kvs_signal(name)
-        return web_ui.get_webrtc_signal(name, WbAuth.api)
+        # Always use KVS WebRTC
+        return wb.api.get_kvs_signal(name)
 
     @app.route("/webrtc/<string:name>")
     @auth_required
@@ -188,87 +228,57 @@ def create_app():
             return make_response(render_template("webrtc.html", webrtc=webrtc))
         return webrtc
 
-    @app.route("/snapshot/<string:img_file>")
-    @auth_required
-    def rtsp_snapshot(img_file: str):
-        """Use ffmpeg to take a snapshot from the rtsp stream."""
-        if wb.streams.get_rtsp_snap(Path(img_file).stem):
-            return send_from_directory(config.IMG_PATH, img_file)
-
-        return thumbnail(img_file)
-
     @app.route("/img/<string:img_file>")
     @auth_required
     def img(img_file: str):
-        """
-        Serve an existing local image or take a new snapshot from the rtsp stream.
-
-        Use the exp parameter to fetch a new snapshot if the existing one is too old.
-        """
-        try:
-            if exp := request.args.get("exp"):
-                created_at = os.path.getmtime(config.IMG_PATH + img_file)
-                if time.time() - created_at > int(exp):
-                    raise NotFound
-            return send_from_directory(config.IMG_PATH, img_file)
-        except (NotFound, FileNotFoundError, ValueError):
-            return rtsp_snapshot(img_file)
+        """Redirect to API thumbnail."""
+        return thumbnail(img_file)
 
     @app.route("/thumb/<string:img_file>")
     @auth_required
     def thumbnail(img_file: str):
-        if wb.api.save_thumbnail(Path(img_file).stem, ""):
-            return send_from_directory(config.IMG_PATH, img_file)
+        """Serve thumbnail with local prioritization and cloud fallback."""
+        uri = Path(img_file).stem
+        file_path = config.IMG_PATH + img_file
+        
+        # Check if local file exists and is recent (e.g., < 180s)
+        is_fresh = False
+        if os.path.exists(file_path):
+            age = time.time() - os.path.getmtime(file_path)
+            is_fresh = age < 180
+        
+        # If stale or missing, try to update from cloud
+        if not is_fresh:
+            try:
+                wb.api.save_thumbnail(uri, "")
+            except Exception:
+                pass  # Ignore cloud errors, use local fallback
+
+        # Serve local file if it exists (even if stale)
+        if os.path.exists(file_path):
+             return send_from_directory(config.IMG_PATH, img_file)
 
         return redirect("/static/notavailable.svg", code=307)
 
-    @app.route("/photo/<string:img_file>")
-    @auth_required
-    def boa_photo(img_file: str):
-        """Take a photo on the camera and grab it over the boa http server."""
-        uri = Path(img_file).stem
-        if not (cam := wb.streams.get(uri)):
-            return redirect("/static/notavailable.svg", code=307)
-        if photo := web_ui.boa_snapshot(cam):
-            return send_from_directory(config.IMG_PATH, f"{uri}_{photo[0]}")
-        return redirect(f"/img/{img_file}", code=307)
 
     @app.route("/restart/<string:restart_cmd>")
     @auth_required
     def restart_bridge(restart_cmd: str):
         """
-        Restart parts of the wyze-bridge.
+        Restart the wyze-bridge.
 
-        /restart/cameras:       Restart camera connections.
-        /restart/rtsp_server:   Restart rtsp-simple-server.
-        /restart/all:           Restart camera connections and rtsp-simple-server.
+        /restart/cameras:  Refresh camera list.
+        /restart/all:      Re-authenticate and refresh cameras.
         """
-        if restart_cmd == "cameras":
-            wb.streams.stop_all()
-            wb.streams.monitor_streams(wb.mtx.health_check)
-        elif restart_cmd == "rtsp_server":
-            wb.mtx.restart()
-        elif restart_cmd == "cam_data":
+        if restart_cmd == "cameras" or restart_cmd == "cam_data":
             wb.refresh_cams()
-            restart_cmd = "cameras"
+            return {"result": "ok", "restart": ["cameras"]}
         elif restart_cmd == "all":
             wb.restart(fresh_data=True)
-            restart_cmd = "cameras,rtsp_server"
+            return {"result": "ok", "restart": ["all"]}
         else:
-            return {"result": "error"}
-        return {"result": "ok", "restart": restart_cmd.split(",")}
+            return {"result": "error", "message": "Invalid restart command"}
 
-    @app.route("/cams.m3u8")
-    @auth_required
-    def iptv_playlist():
-        """
-        Generate an m3u8 playlist with all enabled cameras.
-        """
-        hostname = request.host.split(":")[0]
-        cameras = web_ui.format_streams(wb.streams.get_all_cam_info())
-        resp = make_response(render_template("m3u8.html", cameras=cameras, hostname=hostname))
-        resp.headers.set("content-type", "application/x-mpegURL")
-        return resp
 
     return app
 

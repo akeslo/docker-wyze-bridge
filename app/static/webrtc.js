@@ -69,7 +69,8 @@ class Receiver {
     }
 
     onOpen() {
-        const direction = this.whep ? "sendrecv" : "recvonly";
+        // KVS WebRTC requires sendrecv direction for proper SDP negotiation
+        const direction = "sendrecv";
         this.pc = new RTCPeerConnection({ iceServers: this.signalJson.servers, sdpSemantics: 'unified-plan' });
         this.pc.addTransceiver("video", { direction });
         this.pc.addTransceiver("audio", { direction });

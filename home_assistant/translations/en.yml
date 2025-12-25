@@ -23,9 +23,6 @@ configuration:
   TOTP_KEY:
     name: TOTP Key
     description: Time-based one-time password shared secret key.
-  NET_MODE:
-    name: Allowed Net Modes
-    description: How can the cameras be accessed (local LAN, P2P, or either).
   SNAPSHOT:
     name: Snapshot Mode
     description: How should a snapshot be taken (API or RTSP). The number is how often in seconds.
@@ -124,9 +121,6 @@ configuration:
   FILTER_BLOCK:
     name: Invert Filter
     description: Block cameras in filter lists (instead of enabling)
-  ROTATE_DOOR:
-    name: Rotate Doorbells
-    description: Will rotate video 90 degrees clockwise.
   H264_ENC:
     name: H.264 Encoder
     description: Specify a hardware encoder for FFmpeg

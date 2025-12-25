@@ -210,7 +210,9 @@ class WyzeApi:
         return self.cameras
 
     def filtered_cams(self) -> list[WyzeCamera]:
-        return filter_cams(self.get_cameras() or [])
+        """Return cameras that support KVS WebRTC."""
+        all_cams = filter_cams(self.get_cameras() or [])
+        return [cam for cam in all_cams if cam.webrtc_support]
 
     def get_camera(self, uri: str, existing: bool = False) -> Optional[WyzeCamera]:
         if existing and self.cameras:
