@@ -7,12 +7,12 @@ from wyzebridge.config import MOTION_INT, MOTION_START
 from wyzebridge.logging import logger
 from wyzebridge.mqtt import update_preview
 from wyzebridge.webhooks import send_webhook
-from wyzebridge.wyze_stream import WyzeStream
+from wyzebridge.stream import Stream
 
 class WyzeEvents:
     __slots__ = "api", "streams", "events", "last_check", "last_ts"
 
-    def __init__(self, streams: dict[str, WyzeStream | Any]):
+    def __init__(self, streams: dict[str, Stream | Any]):
         self.streams = streams
         self.api = next(iter(streams.values())).api
         self.events: deque[str] = deque(maxlen=20)

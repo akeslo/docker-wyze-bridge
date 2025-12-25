@@ -41,7 +41,8 @@ section {
 
 .card .card-footer,
 .card .card-footer-item,
-.input {
+.input,
+.button.is-static {
   border-color: #222;
 }
 
@@ -268,4 +269,14 @@ footer.fs-mode {
     backdrop-filter: blur(0.01rem);
     content: "";
   }
+}
+
+.stream-urls .button,
+.stream-urls .input {
+  border: 1px solid rgb(72, 95, 199) !important;
+}
+
+.stream-urls .button {
+  color: rgb(72, 95, 199);
+  font-weight: bold;
 }

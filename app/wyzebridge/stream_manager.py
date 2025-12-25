@@ -3,7 +3,7 @@ import json
 import time
 from subprocess import Popen, TimeoutExpired
 from threading import Thread
-from typing import  Callable, Optional
+from typing import Any, Callable, Optional
 
 from wyzebridge.wyze_api import WyzeApi
 from wyzebridge.stream import Stream
@@ -16,10 +16,11 @@ from wyzebridge.wyze_events import WyzeEvents
 from wyzebridge.bridge_utils_sunset import should_take_snapshot, should_skip_snapshot
 
 class StreamManager:
-    __slots__ = "api", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "monitor_snapshots_thread"
+    __slots__ = "api", "mtx", "stop_flag", "streams", "rtsp_snapshots", "last_snap", "monitor_snapshots_thread"
 
-    def __init__(self, api: WyzeApi):
+    def __init__(self, api: WyzeApi, mtx: Any):
         self.api: WyzeApi = api
+        self.mtx = mtx
         self.stop_flag: bool = False
         self.streams: dict[str, Stream] = {}
         self.rtsp_snapshots: dict[str, Popen] = {}

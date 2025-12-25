@@ -12,13 +12,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        gcc \
-        libffi-dev \
-        tar; \
+    curl \
+    tar; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
+
 
 COPY /app/ /build/app/
 
@@ -28,13 +26,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     set -eux; pip3 install --disable-pip-version-check --prefix=/build/usr/local -r /build/app/requirements.txt
 
 RUN set -eux; \
-    echo "BUILDING IMAGE FOR $(uname -m)";\
+    echo "BUILDING IMAGE FOR $(uname -m) (go2rtc WebRTC-to-RTSP Bridge)";\
     if [ "$(uname -m)" = "armv7l" ]; then \
-        TARGETARCH=arm; FFMPEG_ARCH=arm32v7; MTX_ARCH=armv7; \
+    FFMPEG_ARCH=arm32v7; GO2RTC_ARCH=arm; \
     elif [ "$(uname -m)" = "aarch64" ]; then \
-        TARGETARCH=arm64; FFMPEG_ARCH=aarch64; MTX_ARCH=arm64; \
+    FFMPEG_ARCH=aarch64; GO2RTC_ARCH=arm64; \
     else \
-        TARGETARCH=amd64; FFMPEG_ARCH=x86_64; MTX_ARCH=amd64; \
+    FFMPEG_ARCH=x86_64; GO2RTC_ARCH=amd64; \
     fi; \
     cd /build; \
     . app/.env; \
@@ -43,16 +41,12 @@ RUN set -eux; \
     tar tzf ffmpeg.tar.gz || (echo "Invalid ffmpeg tarball for ${FFMPEG_ARCH}" && exit 1); \
     tar xzf ffmpeg.tar.gz -C . ;\
     rm ffmpeg.tar.gz; \
-    curl -fsSL https://github.com/bluenviron/mediamtx/releases/download/v${MTX_TAG}/mediamtx_v${MTX_TAG}_linux_${MTX_ARCH}.tar.gz -o mediamtx.tar.gz; \
-    tar tzf mediamtx.tar.gz || (echo "Invalid mediamtx tarball for ${MTX_ARCH}" && exit 1); \
-    tar xzf mediamtx.tar.gz -C app; \
-    rm mediamtx.tar.gz; \
-    cp app/lib/lib.${TARGETARCH} usr/local/lib/libIOTCAPIs_ALL.so; \
-    rm -rf app/*.txt app/lib/; \
-    if [ -z "${BUILD_DATE}" ]; \
-        then echo BUILD_DATE=$(date) > .build_date; \
-        else echo BUILD_DATE=${BUILD_DATE} > .build_date; \
-    fi;
+    GO2RTC_VERSION="1.9.4"; \
+    curl -fsSL https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${GO2RTC_ARCH} -o app/go2rtc; \
+    chmod +x app/go2rtc; \
+    rm -rf app/*.txt; \
+    echo "BUILD_DATE=${BUILD_DATE:-$(date)}" > .build_date;
+
 
 FROM base
 ARG BUILD
@@ -61,8 +55,14 @@ ARG BUILD_DATE
 ARG BUILD_VERSION
 
 RUN set -eux; \
-    rm /var/log/*.log ; \
-    rm -rf /var/log/apt ;
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    ; \
+    rm -rf /var/log/*.log ; \
+    rm -rf /var/log/apt ; \
+    rm -rf /var/lib/apt/lists/*
+
 
 COPY --from=builder /build /
 
@@ -71,16 +71,16 @@ WORKDIR /app
 ENTRYPOINT [ "/app/run" ]
 
 LABEL \
-    io.hass.name="Docker Wyze Bridge for Home Assistant" \
-    io.hass.description="Bridges Wyze Cameras into Home Assistant using MediaMTX in Docker container" \
+    io.hass.name="Docker Wyze Bridge for Home Assistant (WebRTC-to-RTSP)" \
+    io.hass.description="Bridges Wyze Cameras to RTSP/HLS via KVS WebRTC for Home Assistant" \
     io.hass.type="addon" \
     io.hass.version=${BUILD_VERSION} \
-    maintainer="Marc Brooks <idisposable@gmail.com>" \
-    org.label-schema.name="Docker Wyze Bridge HA" \
-    org.label-schema.description="Docker Wyze Bridge for Home Assistant" \
+    maintainer="akeslo" \
+    org.label-schema.name="Docker Wyze Bridge HA (WebRTC-to-RTSP)" \
+    org.label-schema.description="Docker Wyze Bridge providing RTSP streams via KVS WebRTC and MediaMTX" \
     org.label-schema.build-date=${BUILD_DATE} \
     org.label-schema.schema-version="1.0" \
-    org.label-schema.usage="https://github.com/IDisposable/docker-wyze-bridge/blob/main/README.md" \
+    org.label-schema.usage="https://github.com/akeslo/docker-wyze-bridge/blob/main/README.md" \
     org.label-schema.vcs-ref=${GITHUB_SHA} \
-    org.label-schema.vcs-url="https://github.com/IDisposable/docker-wyze-bridge/" \
-    org.label-schema.vendor="HomeAssistant add-ons by Marc Brooks"
+    org.label-schema.vcs-url="https://github.com/akeslo/docker-wyze-bridge/" \
+    org.label-schema.vendor="akeslo"

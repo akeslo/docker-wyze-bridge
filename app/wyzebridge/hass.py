@@ -42,10 +42,6 @@ def setup_hass(hass_token: Optional[str]) -> None:
                 environ[f"ENABLE_AUDIO_{cam_name}"] = str(cam["AUDIO"])
             if "FFMPEG" in cam:
                 environ[f"FFMPEG_CMD_{cam_name}"] = str(cam["FFMPEG"])
-            if "NET_MODE" in cam:
-                environ[f"NET_MODE_{cam_name}"] = str(cam["NET_MODE"])
-            if "ROTATE" in cam:
-                environ[f"ROTATE_CAM_{cam_name}"] = str(cam["ROTATE"])
             if "ROTATE_IMG" in cam:
                 environ[f"ROTATE_IMG_{cam_name}"] = str(cam["ROTATE_IMG"])
             if "QUALITY" in cam:
@@ -56,10 +52,7 @@ def setup_hass(hass_token: Optional[str]) -> None:
                 environ[f"FORCE_FPS_{cam_name}"] = str(cam["FORCE_FPS"])
             if "LIVESTREAM" in cam:
                 environ[f"LIVESTREAM_{cam_name}"] = str(cam["LIVESTREAM"])
-            if "RECORD" in cam:
-                environ[f"RECORD_{cam_name}"] = str(cam["RECORD"])
-            if "SUB_RECORD" in cam:
-                environ[f"SUB_RECORD_{cam_name}"] = str(cam["SUB_RECORD"])
+
             if "SUBSTREAM" in cam:
                 environ[f"SUBSTREAM_{cam_name}"] = str(cam["SUBSTREAM"])
             if "MOTION_WEBHOOKS" in cam:

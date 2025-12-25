@@ -8,7 +8,7 @@ from typing import Optional
 
 import yaml
 from wyzebridge.build_config import MTX_TAG
-from wyzebridge.config import MTX_HLSVARIANT, MTX_READTIMEOUT, MTX_WRITEQUEUESIZE, RECORD_KEEP, RECORD_LENGTH, RECORD_PATTERN, STUN_SERVER, SUBJECT_ALT_NAME
+from wyzebridge.config import MTX_HLSVARIANT, MTX_READTIMEOUT, MTX_WRITEQUEUESIZE, STUN_SERVER, SUBJECT_ALT_NAME
 from wyzebridge.bridge_utils import env_bool
 from wyzebridge.logging import logger
 
@@ -80,20 +80,19 @@ class MtxServer:
         self.setup_path_defaults()
 
     def setup_path_defaults(self):
-        logger.info(f"[MTX] Setting up default {RECORD_PATTERN=}")
-        record_path = ensure_record_path().format(cam_name=MTX_PATH, CAM_NAME=MTX_PATH)
-
+        # Ensure FIFO exists
+        fifo = "/tmp/mtx_event"
+        with contextlib.suppress(FileExistsError):
+            os.mkfifo(fifo)
+        
         with MtxInterface() as mtx:
             mtx.set("paths", {})
             for event in {"Read", "Unread", "Ready", "NotReady", "Init"}:
                 bash_cmd = f"echo $MTX_PATH,{event}! > /tmp/mtx_event;"
                 mtx.set(f"pathDefaults.runOn{event}", f"bash -c '{bash_cmd}'")
-            mtx.set("pathDefaults.runOnDemandStartTimeout", "30s")
-            mtx.set("pathDefaults.runOnDemandCloseAfter", "60s")
-            mtx.set("pathDefaults.recordPath", record_path)
-            mtx.set("pathDefaults.recordSegmentDuration", RECORD_LENGTH)
-            mtx.set("pathDefaults.recordDeleteAfter", RECORD_KEEP)
-            
+            mtx.set("pathDefaults.runOnDemandStartTimeout", "45s")  # Longer for WebRTC handshake
+            mtx.set("pathDefaults.runOnDemandCloseAfter", "30s")
+
             # explicitly defaults these because we used to force them in the config.yml enviroment
             mtx.set("hlsVariant", MTX_HLSVARIANT)
             mtx.set("readTimeout", MTX_READTIMEOUT)
@@ -141,16 +140,19 @@ class MtxServer:
 
             mtx.save_config()
 
-    def add_path(self, uri: str, on_demand: bool = True):
+    def add_paths(self, uris: list[str], on_demand: bool = True):
         with MtxInterface() as mtx:
-            if on_demand:
-                bash_cmd = "bash -c 'echo $MTX_PATH,{}! > /tmp/mtx_event'"
-                mtx.set(f"paths.{uri}.runOnDemand", bash_cmd.format("start"))
-                mtx.set(f"paths.{uri}.runOnUnDemand", bash_cmd.format("stop"))
-            else:
-                mtx.set(f"paths.{uri}", {})
-
+            for uri in uris:
+                if on_demand:
+                    bash_cmd = "bash -c 'echo $MTX_PATH,{}! > /tmp/mtx_event'"
+                    mtx.set(f"paths.{uri}.runOnDemand", bash_cmd.format("start"))
+                    mtx.set(f"paths.{uri}.runOnUnDemand", bash_cmd.format("stop"))
+                else:
+                    mtx.set(f"paths.{uri}", {})
             mtx.save_config()
+
+    def add_path(self, uri: str, on_demand: bool = True):
+        self.add_paths([uri], on_demand)
 
     def add_source(self, uri: str, value: str):
         with MtxInterface() as mtx:
@@ -158,21 +160,7 @@ class MtxServer:
 
         mtx.save_config()
 
-    def record(self, uri: str):
-        logger.info(f"[MTX] Starting record for {uri}")
-        
-        base = ensure_record_path()
-        record_path = base.format(cam_name=MTX_PATH, CAM_NAME=MTX_PATH)
-        logger.info(f"[MTX] 📹 Will record {RECORD_LENGTH} clips for {uri} to {record_path} where {MTX_PATH} will be {uri}")
-        
-        file = datetime.now().strftime(base)
-        recording = file.format(cam_name=uri, CAM_NAME=uri.upper())
-        os.makedirs(os.path.dirname(recording), exist_ok=True)
 
-        with MtxInterface() as mtx:
-            mtx.set(f"paths.{uri}.record", True)
-            mtx.set(f"paths.{uri}.recordPath", record_path)
-            mtx.save_config()
 
     def dump_config(self) -> str:
         with MtxInterface() as mtx:
@@ -243,16 +231,7 @@ class MtxServer:
             mtx.set("hlsServerCert", f"{cert_path}.crt")
             mtx.save_config()
 
-def ensure_record_path() -> str:
-    record_path = RECORD_PATTERN
 
-    if "%s" in record_path or all(x in record_path for x in ["%Y", "%m", "%d", "%H", "%M", "%S"]):
-        logger.info(f"[MTX] The computed record_path: '{record_path}' IS VALID")
-    else:
-        logger.warning(f"[MTX] The computed record_path: '{record_path}' IS NOT VALID, appending the %%s to the pattern")
-        record_path += "_%s"
-
-    return record_path
 
 def mtx_version() -> str:
     try:

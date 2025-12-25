@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<nav class="navbar block is-dark">
+    <div class="navbar-brand">
+        <p class="navbar-item">
+            <span class="icon-text">
+                <span class="icon"><i class="fas fa-users-viewfinder"></i></span>
+                <span>{{ total_cams }} Cameras</span>
+            </span>
+        </p>
+    </div>
+</nav>
+
+<div class="cameras columns is-multiline">
+    {% if cam_data %}
+    {% for cam_uri, camera in cam_data.items() %}
+    <div id="{{ cam_uri }}" class="camera column is-6" data-cam="{{ cam_uri }}">
+        <div class="card">
+            <header class="card-header">
+                <div class="card-header-title">
+                    <span class="icon">
+                        <i class="fas fa-video" aria-hidden="true"></i>
+                    </span>
+                    {{ camera.nickname }}
+                    {% if camera.is_battery %}
+                    <span class="icon battery">
+                        <i class="fas fa-battery-full" aria-hidden="true" title="Battery Camera"></i>
+                    </span>
+                    {% endif %}
+                </div>
+            </header>
+            <div class="card-image has-text-centered">
+                <figure class="image">
+                    <video id="video-{{ cam_uri }}" data-cam="{{ cam_uri }}" class="webrtc-video" controls muted
+                        playsinline poster="{{ camera.img_url }}">
+                    </video>
+                </figure>
+                <div class="stream-urls px-3 py-2 has-background-black-bis has-text-grey-light is-size-7">
+                    <div class="field has-addons mb-1">
+                        <div class="control">
+                            <a href="{{ camera.rtsp_url }}" class="button is-small is-link is-outlined">RTSP</a>
+                        </div>
+                        <div class="control is-expanded">
+                            <input class="input is-small is-borderless has-background-black-ter has-text-grey-light"
+                                type="text" value="{{ camera.rtsp_url }}" readonly onclick="this.select();">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<style>
+    .webrtc-video {
+        width: 100%;
+        background: #000;
+        cursor: pointer;
+    }
+
+    .camera {
+        margin-bottom: 1rem;
+    }
+</style>
+
+<script src="static/webrtc.js"></script>
+<script>
+    // Auto-load WebRTC when video is clicked
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.webrtc-video').forEach((video) => {
+            let loaded = false;
+
+            video.addEventListener('click', async () => {
+                if (loaded) return;
+                loaded = true;
+
+                const cam = video.dataset.cam;
+                console.log(`Loading WebRTC for ${cam}...`);
+
+                try {
+                    const response = await fetch(`/signaling/${cam}?kvs`);
+                    const signalData = await response.json();
+
+                    if (signalData.result === 'ok') {
+                        console.log(`WebRTC signaling successful for ${cam}`);
+                        new Receiver(signalData);
+                    } else {
+                        console.error(`Signaling failed for ${cam}:`, signalData);
+                    }
+                } catch (err) {
+                    console.error(`Failed to load WebRTC for ${cam}:`, err);
+                    loaded = false;
+                }
+            }, { once: true });
+        });
+    });
+</script>
+{% endblock %}
