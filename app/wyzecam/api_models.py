@@ -160,6 +160,11 @@ class WyzeCamera(BaseModel):
         return self.product_model not in NO_WEBRTC
 
     @property
+    def kvs_available(self) -> bool:
+        """Check if camera supports KVS WebRTC and is online."""
+        return self.webrtc_support and self.ip is not None
+
+    @property
     def is_2k(self) -> bool:
         return self.product_model in PRO_CAMS or self.model_name.endswith("Pro")
 
