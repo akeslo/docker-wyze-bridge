@@ -7,15 +7,32 @@
             <span class="icon-text">
                 <span class="icon"><i class="fas fa-users-viewfinder"></i></span>
                 <span>{{ total_cams }} Cameras</span>
+                <span class="tag is-warning ml-2">v2-save-btn</span>
             </span>
         </p>
+    </div>
+    <div class="navbar-end">
+        <div class="navbar-item">
+            <label class="checkbox has-text-white">
+                <input type="checkbox" id="show-disabled" onchange="updateDisabledVisibility()">
+                Show Disabled
+            </label>
+        </div>
+        <div class="navbar-item">
+            <button id="save-changes-btn" class="button is-success is-small" style="display:none;"
+                onclick="saveChanges()">
+                <span class="icon"><i class="fas fa-save"></i></span>
+                <span>Save Changes</span>
+            </button>
+        </div>
     </div>
 </nav>
 
 <div class="cameras columns is-multiline">
     {% if cam_data %}
     {% for cam_uri, camera in cam_data.items() %}
-    <div id="{{ cam_uri }}" class="camera column is-6" data-cam="{{ cam_uri }}">
+    <div id="{{ cam_uri }}" class="camera column is-6 {% if not camera.enabled %}disabled{% endif %}"
+        data-cam="{{ cam_uri }}" data-original-enabled="{{ 'true' if camera.enabled else 'false' }}">
         <div class="card">
             <header class="card-header">
                 <div class="card-header-title">
@@ -28,6 +45,13 @@
                         <i class="fas fa-battery-full" aria-hidden="true" title="Battery Camera"></i>
                     </span>
                     {% endif %}
+                </div>
+                <!-- Enable/Disable Toggle -->
+                <div class="card-header-icon">
+                    <label class="checkbox" title="Toggle camera enabled/disabled">
+                        <input type="checkbox" class="enable-toggle" data-cam="{{ cam_uri }}" {% if camera.enabled
+                            %}checked{% endif %}>
+                    </label>
                 </div>
             </header>
             <div class="card-image has-text-centered">
@@ -46,7 +70,6 @@
                                 type="text" value="{{ camera.rtsp_url }}" readonly onclick="this.select();">
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
@@ -65,7 +88,110 @@
     .camera {
         margin-bottom: 1rem;
     }
+
+    .camera.disabled {
+        display: none;
+    }
+
+    .camera.disabled.visible {
+        display: block;
+        opacity: 0.6;
+    }
+
+    .camera.changed .card {
+        border: 2px solid orange;
+    }
 </style>
+
+<script>
+    // Track pending changes
+    const pendingChanges = new Map();
+
+    function updateDisabledVisibility() {
+        const show = document.getElementById('show-disabled').checked;
+        document.querySelectorAll('.camera.disabled').forEach(el => {
+            if (show) {
+                el.classList.add('visible');
+            } else {
+                el.classList.remove('visible');
+            }
+        });
+        localStorage.setItem('show_disabled', show);
+    }
+
+    function checkForChanges() {
+        pendingChanges.clear();
+        document.querySelectorAll('.enable-toggle').forEach(toggle => {
+            const cam = toggle.dataset.cam;
+            const card = document.getElementById(cam);
+            const originalEnabled = card.dataset.originalEnabled === 'true';
+            const currentEnabled = toggle.checked;
+
+            if (originalEnabled !== currentEnabled) {
+                pendingChanges.set(cam, currentEnabled);
+                card.classList.add('changed');
+            } else {
+                card.classList.remove('changed');
+            }
+        });
+
+        const saveBtn = document.getElementById('save-changes-btn');
+        if (pendingChanges.size > 0) {
+            saveBtn.style.display = 'inline-flex';
+            saveBtn.querySelector('span:last-child').textContent = `Save ${pendingChanges.size} Change(s)`;
+        } else {
+            saveBtn.style.display = 'none';
+        }
+    }
+
+    async function saveChanges() {
+        const saveBtn = document.getElementById('save-changes-btn');
+        saveBtn.classList.add('is-loading');
+        saveBtn.disabled = true;
+
+        let success = true;
+        for (const [cam, enabled] of pendingChanges) {
+            const action = enabled ? 'enable' : 'disable';
+            try {
+                const res = await fetch(`/api/camera/${cam}/${action}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status !== 'ok') {
+                    console.error(`Failed to ${action} camera ${cam}:`, data);
+                    success = false;
+                } else {
+                    console.log(`Camera ${cam} ${action}d successfully`);
+                }
+            } catch (err) {
+                console.error(`Error ${action}ing camera ${cam}:`, err);
+                success = false;
+            }
+        }
+
+        if (success) {
+            // Reload to get fresh state
+            window.location.reload();
+        } else {
+            saveBtn.classList.remove('is-loading');
+            saveBtn.disabled = false;
+            alert('Some changes failed to save. Check console for details.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Restore show-disabled state
+        const show = localStorage.getItem('show_disabled') === 'true';
+        const showCheckbox = document.getElementById('show-disabled');
+        if (showCheckbox) {
+            showCheckbox.checked = show;
+            updateDisabledVisibility();
+        }
+
+        // Attach change listeners to toggles
+        document.querySelectorAll('.enable-toggle').forEach(toggle => {
+            toggle.addEventListener('change', checkForChanges);
+        });
+    });
+</script>
 
 <script src="static/webrtc.js"></script>
 <script>

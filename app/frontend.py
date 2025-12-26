@@ -88,6 +88,8 @@ def create_app():
             show_video = False
 
         # Format camera data for WebUI
+        # Reload disabled cams to ensure UI is in sync with file storage
+        wb.disabled_cams = wb.load_disabled_cams()
         cam_data = {
             uri: {
                 "name_uri": uri,
@@ -99,6 +101,7 @@ def create_app():
                 "enabled": True,  # go2rtc handles on-demand
                 "online": cam.ip is not None,
                 "connected": True,  # go2rtc handles connections
+                "enabled": uri not in wb.disabled_cams,
                 "img_url": f"/thumb/{uri}.jpg",
                 "webrtc_url": f"/webrtc/{uri}",
                 "rtsp_url": f"rtsp://{request.host.split(':')[0]}:8554/{uri}",
@@ -260,6 +263,16 @@ def create_app():
 
         return redirect("/static/notavailable.svg", code=307)
 
+
+    @app.route("/api/camera/<string:uri>/<string:action>", methods=["POST"])
+    @auth_required
+    def camera_action(uri, action):
+        """Enable or disable camera."""
+        if action == "enable":
+            wb.toggle_cam(uri, True)
+        elif action == "disable":
+            wb.toggle_cam(uri, False)
+        return {"status": "ok", "enabled": uri not in wb.disabled_cams}
 
     @app.route("/restart/<string:restart_cmd>")
     @auth_required

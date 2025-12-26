@@ -19,6 +19,7 @@ setup_hass(HASS_TOKEN)
 
 makedirs(TOKEN_PATH, exist_ok=True)
 makedirs(IMG_PATH, exist_ok=True)
+makedirs("/config/", exist_ok=True)
 
 if HASS_TOKEN:
     migrate_path("/config/wyze-bridge/", "/config/")
@@ -40,6 +41,43 @@ class WyzeBridge(Thread):
         self.cameras: dict[str, WyzeCamera] = {}
         self.go2rtc: Go2RtcServer = Go2RtcServer()
         self.snapshots: SnapshotManager = None
+        self.disabled_cams: set[str] = self.load_disabled_cams()
+
+    def load_disabled_cams(self) -> set[str]:
+        """Load list of disabled cameras from file."""
+        import json
+        try:
+             with open("/config/disabled_cameras.json", "r") as f:
+                 return set(json.load(f))
+        except (FileNotFoundError, json.JSONDecodeError):
+            return set()
+
+    def save_disabled_cams(self) -> None:
+        """Save disabled cameras to file."""
+        import json
+        with open("/config/disabled_cameras.json", "w") as f:
+            json.dump(list(self.disabled_cams), f)
+
+    def toggle_cam(self, uri: str, enable: bool) -> None:
+        """Enable or disable a camera."""
+        if enable:
+            if uri in self.disabled_cams:
+                self.disabled_cams.remove(uri)
+                if uri in self.cameras:
+                    # Re-add to go2rtc
+                    signaling_url = f"http://127.0.0.1:5000/signaling/{uri}?kvs"
+                    self.go2rtc.add_camera(uri, signaling_url)
+        else:
+            self.disabled_cams.add(uri)
+            # Remove from go2rtc (requires restart currently or API update if we had it)
+            # For now, just remove from config, user might need restart or we add API remove later.
+            # Actually, we can't easily remove from running go2rtc without API. 
+            # But we can effectively stop it by removing from config and it won't be there next time.
+            # And snapshots won't run.
+            pass
+            
+        self.save_disabled_cams()
+        logger.info(f"Toggled camera {uri} to {enable}. Disabled list: {self.disabled_cams}")
 
     def health(self):
         """Return health status for /health endpoint."""
@@ -113,6 +151,11 @@ class WyzeBridge(Thread):
 
             logger.info(f"[+] Adding {cam.nickname} [{cam.product_model}] at {cam.name_uri}")
             self.cameras[cam.name_uri] = cam
+            
+            # Check if disabled
+            if cam.name_uri in self.disabled_cams:
+                logger.info(f"[!] {cam.nickname} is DISABLED in config")
+                continue
 
             # go2rtc will use our Flask signaling endpoint
             # Format: webrtc:http://127.0.0.1:5000/signaling/<cam>?kvs#format=wyze
