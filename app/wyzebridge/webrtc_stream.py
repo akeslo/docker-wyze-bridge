@@ -201,9 +201,14 @@ class WebRtcStream:
             if self.pc and hasattr(self.pc, 'iceConnectionState'):
                 ice_state = self.pc.iceConnectionState
                 if ice_state in {"failed", "closed"}:
-                    logger.warning(f"[{self.uri}] ICE connection {ice_state}")
+                    logger.warning(f"[{self.uri}] ICE connection {ice_state} - possible TURN credential expiration")
                     self._handle_failure()
                     return self.state
+                elif ice_state == "disconnected":
+                    # Allow brief disconnections but monitor
+                    if time.time() - self.start_time > 300:  # If disconnected after 5+ mins
+                        logger.warning(f"[{self.uri}] Extended disconnection detected")
+                        # Don't fail immediately, but log for monitoring
 
         return self.state
 
@@ -381,8 +386,12 @@ class WebRtcStream:
                     self.state = StreamStatus.CONNECTED
                     self.start_time = time.time()
                     self._reconnect_count = 0  # Reset reconnect counter on success
+                elif state == "checking":
+                    logger.debug(f"[{self.uri}] ICE checking - negotiating connection...")
+                elif state == "disconnected":
+                    logger.warning(f"[{self.uri}] ICE disconnected - connection may recover")
                 elif state in {"failed", "closed"}:
-                    logger.error(f"[{self.uri}] ICE connection {state}")
+                    logger.error(f"[{self.uri}] ICE connection {state} - TURN credentials may have expired")
                     await self._cleanup()
 
             @self.pc.on("connectionstatechange")
