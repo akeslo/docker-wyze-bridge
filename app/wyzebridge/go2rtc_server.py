@@ -22,7 +22,16 @@ class Go2RtcServer:
         self.config = {
             "api": {"listen": ":1984"},
             "rtsp": {"listen": ":8554"},
-            "webrtc": {"listen": ":8555"},
+            "webrtc": {
+                "listen": ":8555",
+                "ice_servers": [
+                    {"urls": ["stun:stun.l.google.com:19302"]},
+                ]
+            },
+            "log": {
+                "level": "info",
+                "format": "text"
+            },
             "streams": {}
         }
     

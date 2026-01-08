@@ -252,7 +252,7 @@ class WyzeApi:
         logger.info(f'☁️ Pulling "{uri}" thumbnail to {save_to}')
 
         try:
-            img = get(thumb)
+            img = get(thumb, timeout=10)
             img.raise_for_status()
 
             with open(save_to, "wb") as f:
@@ -267,6 +267,27 @@ class WyzeApi:
                     utime(save_to, (ts, ts))
 
             return True
+        except HTTPError as ex:
+            if ex.response and ex.response.status_code == 401:
+                logger.warning(f"[API] Thumbnail URL expired for {uri}, refreshing camera data...")
+                # Refresh camera data to get new thumbnail URL
+                fresh_thumb = self.get_thumbnail(uri)
+                if fresh_thumb and fresh_thumb != thumb:
+                    logger.info(f"[API] Retrying thumbnail fetch with refreshed URL")
+                    try:
+                        img = get(fresh_thumb, timeout=10)
+                        img.raise_for_status()
+                        with open(save_to, "wb") as f:
+                            f.write(img.content)
+                        return True
+                    except Exception as retry_ex:
+                        logger.error(f"[API] Retry failed: [{type(retry_ex).__name__}] {retry_ex}")
+                        return False
+                else:
+                    logger.error(f"[API] Could not get refreshed thumbnail URL for {uri}")
+                    return False
+            logger.error(f"[API] Error pulling thumbnail: [{type(ex).__name__}] {ex}")
+            return False
         except Exception as ex:
             logger.error(f"[API] Error pulling thumbnail: [{type(ex).__name__}] {ex}")
             return False
