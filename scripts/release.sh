@@ -98,3 +98,23 @@ echo "Image pushed to: $IMAGE_NAME:$TAG"
 echo ""
 echo "To pull: docker pull $IMAGE_NAME:$TAG"
 echo "════════════════════════════════════════════════════════"
+
+# Clean up old untagged images
+echo ""
+echo "🧹 Cleaning up old untagged images..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/imgclean.sh" ]; then
+    if command -v gh &>/dev/null; then
+        bash "$SCRIPT_DIR/imgclean.sh"
+    else
+        echo "⚠️  GitHub CLI (gh) not installed - skipping image cleanup"
+        echo "   Install with: brew install gh"
+    fi
+else
+    echo "⚠️  imgclean.sh not found - skipping image cleanup"
+fi
+
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo "🎉 Release Complete!"
+echo "════════════════════════════════════════════════════════"
