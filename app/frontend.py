@@ -274,6 +274,11 @@ def create_app():
             wb.toggle_cam(uri, False)
         return {"status": "ok", "enabled": uri not in wb.disabled_cams}
 
+    @app.route("/favicon.ico")
+    def favicon():
+        """Serve favicon or return empty response to suppress 404."""
+        return '', 204
+
     @app.route("/restart/<string:restart_cmd>")
     @auth_required
     def restart_bridge(restart_cmd: str):
