@@ -480,42 +480,90 @@ class WebRtcStream:
     async def _write_video_track(self):
         """Write video frames to named pipe after encoding."""
         logger.info(f"[{self.uri}] Starting video track handler")
-        
+
         if not self._video_track:
             logger.error(f"[{self.uri}] No video track available!")
             return
-            
+
         frame_count = 0
         last_log_time = 0
         import time as time_module
+        import av
 
+        codec = None
         try:
-            while not self._stop_event.is_set():
-                try:
-                    logger.debug(f"[{self.uri}] Waiting for video frame...")
-                    frame = await asyncio.wait_for(self._video_track.recv(), timeout=5.0)
-                    frame_count += 1
-                    
-                    # Log every 30 frames (roughly every second at 30fps)
-                    now = time_module.time()
-                    if now - last_log_time >= 1.0:
-                        logger.info(f"[{self.uri}] ✅ Receiving video: frame={frame_count}, size={frame.width}x{frame.height}")
-                        last_log_time = now
-                    
-                    # TODO: Once frames are confirmed working, add FFmpeg piping here
-                    
-                except asyncio.TimeoutError:
-                    logger.warning(f"[{self.uri}] Video frame timeout (no frames for 5s)")
-                    continue
-                except Exception as ex:
-                    if not self._stop_event.is_set():
-                        logger.error(f"[{self.uri}] Video frame error: {ex}", exc_info=True)
-                    break
-                    
+            # Wait for first frame to get dimensions
+            logger.info(f"[{self.uri}] Waiting for first video frame to initialize codec...")
+            first_frame = await asyncio.wait_for(self._video_track.recv(), timeout=10.0)
+
+            # Initialize H264 encoder
+            codec = av.CodecContext.create("libx264", "w")
+            codec.width = first_frame.width
+            codec.height = first_frame.height
+            codec.pix_fmt = "yuv420p"
+            codec.bit_rate = self.options.bitrate * 1000  # Convert kbps to bps
+            codec.time_base = "1/30"  # 30fps
+            codec.framerate = "30/1"
+            codec.gop_size = 30  # One keyframe per second at 30fps
+            codec.options = {
+                "preset": "ultrafast",
+                "tune": "zerolatency",
+                "profile": "baseline"
+            }
+            codec.open()
+
+            logger.info(f"[{self.uri}] H264 encoder initialized: {first_frame.width}x{first_frame.height}, {self.options.bitrate}kbps, gop={codec.gop_size}")
+
+            with open(self.video_pipe, "wb") as pipe:
+                # Process first frame
+                frame_count += 1
+                packets = codec.encode(first_frame)
+                for packet in packets:
+                    pipe.write(bytes(packet))
+                pipe.flush()
+
+                last_log_time = time_module.time()
+                logger.info(f"[{self.uri}] ✅ First video frame encoded and written")
+
+                # Process remaining frames
+                while not self._stop_event.is_set():
+                    try:
+                        frame = await asyncio.wait_for(self._video_track.recv(), timeout=5.0)
+                        frame_count += 1
+
+                        # Encode and write
+                        packets = codec.encode(frame)
+                        for packet in packets:
+                            pipe.write(bytes(packet))
+                        pipe.flush()
+
+                        # Log every second
+                        now = time_module.time()
+                        if now - last_log_time >= 1.0:
+                            logger.info(f"[{self.uri}] Video encoding: frame={frame_count}, size={frame.width}x{frame.height}")
+                            last_log_time = now
+
+                    except asyncio.TimeoutError:
+                        logger.warning(f"[{self.uri}] Video frame timeout (no frames for 5s)")
+                        continue
+                    except Exception as ex:
+                        if not self._stop_event.is_set():
+                            logger.error(f"[{self.uri}] Video frame error: {ex}", exc_info=True)
+                        break
+
+                # Flush encoder
+                if codec:
+                    packets = codec.encode(None)
+                    for packet in packets:
+                        pipe.write(bytes(packet))
+                    pipe.flush()
+
+        except asyncio.TimeoutError:
+            logger.error(f"[{self.uri}] Timeout waiting for first video frame")
         except Exception as ex:
             if not self._stop_event.is_set():
                 logger.error(f"[{self.uri}] Video track handler error: {ex}", exc_info=True)
-        
+
         logger.info(f"[{self.uri}] Video track handler stopped after {frame_count} frames")
 
     async def _write_audio_track(self):
