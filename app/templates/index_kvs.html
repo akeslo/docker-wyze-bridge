@@ -7,7 +7,6 @@
             <span class="icon-text">
                 <span class="icon"><i class="fas fa-users-viewfinder"></i></span>
                 <span>{{ total_cams }} Cameras</span>
-                <span class="tag is-warning ml-2">v2-save-btn</span>
             </span>
         </p>
     </div>
@@ -195,33 +194,25 @@
 
 <script src="static/webrtc.js"></script>
 <script>
-    // Auto-load WebRTC when video is clicked
+    // Auto-load WebRTC for all cameras on page load
     document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.webrtc-video').forEach((video) => {
-            let loaded = false;
+        document.querySelectorAll('.webrtc-video').forEach(async (video) => {
+            const cam = video.dataset.cam;
+            console.log(`Auto-loading WebRTC for ${cam}...`);
 
-            video.addEventListener('click', async () => {
-                if (loaded) return;
-                loaded = true;
+            try {
+                const response = await fetch(`/signaling/${cam}?kvs`);
+                const signalData = await response.json();
 
-                const cam = video.dataset.cam;
-                console.log(`Loading WebRTC for ${cam}...`);
-
-                try {
-                    const response = await fetch(`/signaling/${cam}?kvs`);
-                    const signalData = await response.json();
-
-                    if (signalData.result === 'ok') {
-                        console.log(`WebRTC signaling successful for ${cam}`);
-                        new Receiver(signalData);
-                    } else {
-                        console.error(`Signaling failed for ${cam}:`, signalData);
-                    }
-                } catch (err) {
-                    console.error(`Failed to load WebRTC for ${cam}:`, err);
-                    loaded = false;
+                if (signalData.result === 'ok') {
+                    console.log(`WebRTC signaling successful for ${cam}`);
+                    new Receiver(signalData);
+                } else {
+                    console.error(`Signaling failed for ${cam}:`, signalData);
                 }
-            }, { once: true });
+            } catch (err) {
+                console.error(`Failed to load WebRTC for ${cam}:`, err);
+            }
         });
     });
 </script>

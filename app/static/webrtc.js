@@ -135,20 +135,42 @@ class Receiver {
     }
 
     onTrack(event) {
+        console.log(`[${this.signalJson.cam}] 🎬 Received ${event.track.kind} track`);
         let vid = document.querySelector(`video[data-cam='${this.signalJson.cam}']`);
-        vid.srcObject = event.streams[0];
+        if (!vid) {
+            console.error(`Video element not found for ${this.signalJson.cam}`);
+            return;
+        }
+
+        // Only set srcObject if it's different to avoid interrupting playback
+        if (vid.srcObject !== event.streams[0]) {
+            vid.srcObject = event.streams[0];
+            console.log(`[${this.signalJson.cam}] Set video srcObject`);
+        }
+
         vid.autoplay = true;
-        vid.play().catch((err) => {
-            console.info('play() error:', err);
+        vid.play().then(() => {
+            console.log(`[${this.signalJson.cam}] ▶️ Video playback started`);
+        }).catch((err) => {
+            // Ignore AbortError (interrupted by new load)
+            if (err.name !== 'AbortError') {
+                console.warn(`play() error for ${this.signalJson.cam}:`, err);
+            }
         });
     }
 
     onConnectionStateChange() {
         clearTimeout(this.iceConnectionTimer);
         if (this.restartTimeout !== null) { return; }
+        console.log(`[${this.signalJson.cam}] ICE connection state: ${this.pc.iceConnectionState}`);
         switch (this.pc.iceConnectionState) {
+            case 'connected':
+            case 'completed':
+                console.log(`[${this.signalJson.cam}] ✅ ICE connection established!`);
+                break;
             case 'disconnected':
             case 'failed':
+                console.error(`[${this.signalJson.cam}] ❌ ICE connection ${this.pc.iceConnectionState}`);
                 this.onError()
                 break;
         }
@@ -175,11 +197,29 @@ class Receiver {
         switch (eventData.messageType) {
             case 'SDP_OFFER':
             case 'SDP_ANSWER':
-                this.pc.setRemoteDescription(new RTCSessionDescription(payload));
+                this.pc.setRemoteDescription(new RTCSessionDescription(payload)).then(() => {
+                    // Process any queued candidates after remote description is set
+                    if (this.queuedCandidates.length > 0) {
+                        console.log(`Processing ${this.queuedCandidates.length} queued ICE candidates`);
+                        for (const candidate of this.queuedCandidates) {
+                            this.pc.addIceCandidate(candidate).catch(err => {
+                                console.warn('Error adding queued candidate:', err);
+                            });
+                        }
+                        this.queuedCandidates = [];
+                    }
+                });
                 break;
             case 'ICE_CANDIDATE':
                 if ('candidate' in payload) {
-                    this.pc.addIceCandidate(payload);
+                    // Queue candidates if remote description isn't set yet
+                    if (!this.pc.remoteDescription) {
+                        this.queuedCandidates.push(payload);
+                    } else {
+                        this.pc.addIceCandidate(payload).catch(err => {
+                            console.warn('Error adding ICE candidate:', err);
+                        });
+                    }
                 }
                 break;
         }
