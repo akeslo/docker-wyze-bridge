@@ -166,9 +166,9 @@ class WyzeBridge(Thread):
         """Get KVS signaling data for a camera (used by go2rtc)."""
         return self.api.get_kvs_signal(cam_name)
 
-    def clean_up(self, *_):
+    def clean_up(self, signum=None, frame=None):
         """Clean up before shutdown."""
-        logger.info("👋 Shutting down...")
+        logger.info(f"👋 Shutting down... (Signal: {signum})")
         if self.snapshots:
             self.snapshots.stop()
         if hasattr(self, 'go2rtc'):

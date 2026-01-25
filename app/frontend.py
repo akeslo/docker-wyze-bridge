@@ -220,6 +220,8 @@ def create_app():
     @app.route("/signaling/<string:name>")
     @auth_required
     def webrtc_signaling(name):
+        if name in wb.disabled_cams:
+            return {"error": "Camera is disabled"}, 403
         # Always use KVS WebRTC
         return wb.api.get_kvs_signal(name)
 
@@ -227,6 +229,8 @@ def create_app():
     @auth_required
     def webrtc(name):
         """View WebRTC direct from camera."""
+        if name in wb.disabled_cams:
+            return "Camera is disabled", 403
         if (webrtc := wb.api.get_kvs_signal(name)).get("result") == "ok":
             return make_response(render_template("webrtc.html", webrtc=webrtc))
         return webrtc

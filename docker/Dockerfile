@@ -43,7 +43,7 @@ RUN set -eux; \
     tar tzf ffmpeg.tar.gz || (echo "Invalid ffmpeg tarball for ${FFMPEG_ARCH}" && exit 1); \
     tar xzf ffmpeg.tar.gz -C . ;\
     rm ffmpeg.tar.gz; \
-    GO2RTC_VERSION="1.9.4"; \
+    GO2RTC_VERSION="1.9.8"; \
     curl -fsSL https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${GO2RTC_ARCH} -o app/go2rtc; \
     chmod +x app/go2rtc; \
     rm -rf app/*.txt; \
