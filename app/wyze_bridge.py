@@ -2,6 +2,7 @@
 from os import makedirs
 import signal  # Force rebuild
 import sys
+import time
 from threading import Thread
 
 from wyzebridge.build_config import BUILD_STR, VERSION
@@ -96,7 +97,15 @@ class WyzeBridge(Thread):
         """Initialize and run the bridge in thread mode."""
         self._initialize(fresh_data)
         while True:
-            signal.pause()
+            time.sleep(10)
+            if not self.go2rtc.is_running():
+                logger.error("[BRIDGE] go2rtc process died! Restarting...")
+                self.go2rtc.start()
+            
+            if self.snapshots and not self.snapshots.is_alive():
+                logger.error("[BRIDGE] Snapshot manager died! Restarting...")
+                self.snapshots = SnapshotManager(self.cameras)
+                self.snapshots.start()
 
     def _initialize(self, fresh_data: bool = False) -> None:
         """Login, setup cameras, configure and start go2rtc."""

@@ -1,6 +1,7 @@
 import contextlib
 import json
 import pickle
+import threading
 from datetime import datetime
 from functools import wraps
 from os import environ, utime
@@ -59,9 +60,12 @@ def authenticated(func: Callable[..., Any]) -> Callable[..., Any]:
         try:
             return func(self, *args, **kwargs)
         except AccessTokenError:
+            if kwargs.get("_retried"):
+                raise
+            kwargs["_retried"] = True
             logger.warning("[API] ⚠️ Expired token?")
             self.refresh_token()
-            return func(self, *args, **kwargs)
+            return wrapper(self, *args, **kwargs)
         except (RateLimitError, WyzeAPIError) as ex:
             logger.error(f"[API] [{type(ex).__name__}] {ex}")
         except ConnectionError as ex:
@@ -98,7 +102,7 @@ class WyzeCredentials:
         return self.email.lower() == email.lower() if self.is_set else True
 
 class WyzeApi:
-    __slots__ = "auth", "user", "creds", "cameras", "_last_pull"
+    __slots__ = "auth", "user", "creds", "cameras", "_last_pull", "_auth_lock"
 
     def __init__(self) -> None:
         self.auth: Optional[WyzeCredential] = None
@@ -106,6 +110,7 @@ class WyzeApi:
         self.creds: WyzeCredentials = WyzeCredentials()
         self.cameras: Optional[list[WyzeCamera]] = None
         self._last_pull: float = 0
+        self._auth_lock = threading.Lock()
 
         if env_bool("FRESH_DATA"):
             self.clear_cache()
@@ -135,8 +140,9 @@ class WyzeApi:
         return self.auth
 
     def attempt_login(self, web: bool = False) -> None:
-        while self.auth_locked:
+        while self.check_auth_lock(update=False):
             sleep(1)
+        self.check_auth_lock(update=True)
 
         try:
             self.auth = login(
@@ -311,31 +317,31 @@ class WyzeApi:
                 ex = "Camera does not support WebRTC"
             return {"result": str(ex), "cam": cam_name}
 
-    @authenticated
     def refresh_token(self):
-        logger.info("♻️ Refreshing tokens")
+        with self._auth_lock:
+            logger.info("♻️ Refreshing tokens")
 
-        if self.auth_locked:
-            return
+            if self.check_auth_lock():
+                return self.auth
 
-        if not self.auth:
-            logger.error("[API] no auth information in refresh_token")
-            return
+            if not self.auth:
+                logger.error("[API] no auth information in refresh_token")
+                return
 
-        try:
-            self.auth = refresh_token(self.auth)
-            pickle_dump("auth", self.auth)
-            return self.auth
-        except Exception as ex:
-            logger.error(f"[API] Exception refreshing token [{type(ex).__name__}] {ex}")
-            logger.warning("⏰ Expired refresh token?")
-            return self.login(fresh_data=True)
+            try:
+                self.auth = refresh_token(self.auth)
+                pickle_dump("auth", self.auth)
+                return self.auth
+            except Exception as ex:
+                logger.error(f"[API] Exception refreshing token [{type(ex).__name__}] {ex}")
+                logger.warning("⏰ Expired refresh token?")
+                return self.login(fresh_data=True)
 
-    @property
-    def auth_locked(self) -> bool:
+    def check_auth_lock(self, update: bool = True) -> bool:
         if time() - self._last_pull < 15:
             return True
-        self._last_pull = time()
+        if update:
+            self._last_pull = time()
         return False
 
     @authenticated

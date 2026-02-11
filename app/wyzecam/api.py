@@ -97,7 +97,7 @@ def login(
     headers = _headers(phone_id, key_id=key_id, api_key=api_key)
     payload = {"email": email.strip(), "password": hash_password(password)}
 
-    resp = post(f"{AUTH_API}/api/user/login", json=payload, headers=headers)
+    resp = post(f"{AUTH_API}/api/user/login", json=payload, headers=headers, timeout=30)
     resp_json = validate_resp(resp)
     resp_json["phone_id"] = phone_id
 
@@ -139,6 +139,7 @@ def mfa_login(
         "https://auth-prod.api.wyze.com/user/login",
         json=payload,
         headers=_headers(phone_id),
+        timeout=30,
     )
     resp.raise_for_status()
     return WyzeCredential.parse_obj(dict(resp.json(), phone_id=phone_id))
@@ -161,6 +162,7 @@ def send_sms_code(auth_info: WyzeCredential) -> str:
         json={},
         params=payload,
         headers=_headers(auth_info.phone_id),
+        timeout=30,
     )
     resp.raise_for_status()
     return resp.json().get("session_id")
@@ -182,7 +184,7 @@ def refresh_token(auth_info: WyzeCredential) -> WyzeCredential:
     payload["refresh_token"] = auth_info.refresh_token
 
     ui_headers = _headers() # (auth_info.phone_id, SCALE_USER_AGENT)
-    resp = post(f"{WYZE_API}/user/refresh_token", json=payload, headers=ui_headers)
+    resp = post(f"{WYZE_API}/user/refresh_token", json=payload, headers=ui_headers, timeout=30)
 
     resp_json = validate_resp(resp)
     resp_json["user_id"] = auth_info.user_id
@@ -205,7 +207,7 @@ def get_user_info(auth_info: WyzeCredential) -> WyzeAccount:
     payload = _payload(auth_info)
     ui_headers = _headers()
     resp = post(
-        f"{WYZE_API}/user/get_user_info", json=payload, headers=ui_headers
+        f"{WYZE_API}/user/get_user_info", json=payload, headers=ui_headers, timeout=30
     )
 
     resp_json = validate_resp(resp)
@@ -219,6 +221,7 @@ def get_homepage_object_list(auth_info: WyzeCredential) -> dict[str, Any]:
         f"{WYZE_API}/v2/home_page/get_object_list",
         json=_payload(auth_info),
         headers=_headers(),
+        timeout=30,
     )
 
     return validate_resp(resp)
@@ -291,7 +294,7 @@ def run_action(auth_info: WyzeCredential, camera: WyzeCamera, action: str):
         provider_key=camera.product_model,
         custom_string="",
     )
-    resp = post(f"{WYZE_API}/v2/auto/run_action", json=payload, headers=_headers())
+    resp = post(f"{WYZE_API}/v2/auto/run_action", json=payload, headers=_headers(), timeout=30)
 
     return validate_resp(resp)
 
@@ -305,10 +308,10 @@ def post_device(
     if api_version == 4:
         payload = sort_dict(params)
         headers = sign_payload(auth_info, "9319141212m2ik", payload)
-        resp = post(device_url, data=payload, headers=headers)
+        resp = post(device_url, data=payload, headers=headers, timeout=30)
     else:
         params |= _payload(auth_info, endpoint)
-        resp = post(device_url, json=params, headers=_headers())
+        resp = post(device_url, json=params, headers=_headers(), timeout=30)
 
     return validate_resp(resp)
 
@@ -323,6 +326,7 @@ def get_cam_webrtc(auth_info: WyzeCredential, mac_id: str) -> dict:
     resp = get(
         f"https://webrtc.api.wyze.com/signaling/device/{mac_id}?use_trickle=true",
         headers=ui_headers,
+        timeout=30,
     )
     resp_json = validate_resp(resp)
     for s in resp_json["results"]["servers"]:
