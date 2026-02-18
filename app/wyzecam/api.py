@@ -342,7 +342,7 @@ def validate_resp(resp: Response) -> dict:
 
     resp_json = resp.json()
     resp_code = str(resp_json.get("code", resp_json.get("errorCode", 0)))
-    if resp_code == "2001":
+    if resp_code in {"2", "2001"}:
         raise AccessTokenError()
 
     if resp_code not in {"1", "0"}:
