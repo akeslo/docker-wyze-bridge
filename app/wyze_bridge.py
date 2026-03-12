@@ -82,12 +82,23 @@ class WyzeBridge(Thread):
 
     def health(self):
         """Return health status for /health endpoint."""
-        return {
+        result = {
             "wyze_authed": self.api.auth is not None and self.api.auth.access_token is not None,
             "camera_count": len(self.cameras),
             "go2rtc_running": self.go2rtc.is_running(),
             "snapshots_running": self.snapshots and self.snapshots.is_alive(),
         }
+        streams_status = self.go2rtc.get_streams_status()
+        if streams_status:
+            result["streams"] = {
+                uri: {
+                    "producers": len(info.get("producers", [])),
+                    "consumers": len(info.get("consumers", [])),
+                    "fail_count": self.go2rtc._stream_fail_counts.get(uri, 0),
+                }
+                for uri, info in streams_status.items()
+            }
+        return result
 
     def start(self, fresh_data: bool = False) -> None:
         """Initialize the bridge synchronously."""
@@ -101,7 +112,10 @@ class WyzeBridge(Thread):
             if not self.go2rtc.is_running():
                 logger.error("[BRIDGE] go2rtc process died! Restarting...")
                 self.go2rtc.start()
-            
+            else:
+                # Monitor stream health within go2rtc (detect broken pipe / no-producer states)
+                self.go2rtc.health_check_streams()
+
             if self.snapshots and not self.snapshots.is_alive():
                 logger.error("[BRIDGE] Snapshot manager died! Restarting...")
                 self.snapshots = SnapshotManager(self.cameras)
