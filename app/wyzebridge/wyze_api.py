@@ -56,16 +56,15 @@ def authenticated(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self, *args: Any, **kwargs: Any):
         if not self.auth and not self.login():
             return
-
+        _retried = kwargs.pop("_retried", False)
         try:
             return func(self, *args, **kwargs)
         except AccessTokenError:
-            if kwargs.get("_retried"):
+            if _retried:
                 raise
-            kwargs["_retried"] = True
             logger.warning("[API] ⚠️ Expired token?")
             self.refresh_token()
-            return wrapper(self, *args, **kwargs)
+            return wrapper(self, *args, _retried=True, **kwargs)
         except (RateLimitError, WyzeAPIError) as ex:
             logger.error(f"[API] [{type(ex).__name__}] {ex}")
         except ConnectionError as ex:
