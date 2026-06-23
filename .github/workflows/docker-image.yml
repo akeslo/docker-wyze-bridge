@@ -33,10 +33,6 @@ jobs:
       matrix:
         include:
           - dockerfile: multiarch
-          - dockerfile: hwaccel
-            qsv: 0
-          - dockerfile: hwaccel
-            qsv: 1
 
     steps:
       - name: Checkout repository
