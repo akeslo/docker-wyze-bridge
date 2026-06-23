@@ -69,6 +69,7 @@ def authenticated(func: Callable[..., Any]) -> Callable[..., Any]:
             logger.error(f"[API] [{type(ex).__name__}] {ex}")
         except ConnectionError as ex:
             logger.error(f"[API] [{type(ex).__name__}] {ex}")
+            return {"result": "connection_error", "error": str(ex)}
 
     return wrapper
 
