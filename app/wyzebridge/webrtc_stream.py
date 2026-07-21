@@ -10,7 +10,7 @@ import contextlib
 import os
 import threading
 import time
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, TimeoutExpired
 from typing import Optional
 
 from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer, RTCSessionDescription
@@ -631,7 +631,7 @@ class WebRtcStream:
             self.ffmpeg_process.terminate()
             try:
                 self.ffmpeg_process.wait(timeout=3)
-            except:
+            except TimeoutExpired:
                 self.ffmpeg_process.kill()
             self.ffmpeg_process = None
 
