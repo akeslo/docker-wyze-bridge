@@ -289,9 +289,9 @@ def send_tutk_msg(sess: WyzeIOTCSession, cmd: tuple | str, log: str = "info") ->
         return resp | _error_response(cmd, f"[{ex.code}] {ex.name}", connected)
     except Exception as ex:
         return resp | _error_response(cmd, ex)
-    finally:
-        if not sess.should_stream(0):
-            return resp | _error_response(cmd, "not connected", False)
+
+    if not sess.should_stream(0):
+        return resp | _error_response(cmd, "not connected", False)
 
     return _response(resp, res, params, log)
 
