@@ -18,17 +18,22 @@ GO2RTC_API = "http://127.0.0.1:1984"
 HEALTH_FAIL_THRESHOLD = 2
 # Seconds between health checks
 HEALTH_CHECK_INTERVAL = 30
+# Consecutive failed go2rtc API calls (process alive but not responding) before
+# the whole go2rtc process is force-restarted. A single blip shouldn't restart
+# the process, so this tolerates a few checks (~90s) before escalating.
+API_FAIL_THRESHOLD = 3
 
 
 class Go2RtcServer:
     """Manages go2rtc process and configuration."""
 
-    __slots__ = "sub_process", "config", "_stream_fail_counts", "_last_health_check"
+    __slots__ = "sub_process", "config", "_stream_fail_counts", "_last_health_check", "_api_fail_count"
 
     def __init__(self):
         self.sub_process: Optional[Popen] = None
         self._stream_fail_counts: dict[str, int] = {}
         self._last_health_check: float = 0
+        self._api_fail_count: int = 0
         self.config = {
             "api": {"listen": ":1984"},
             "rtsp": {"listen": ":8554"},
@@ -78,6 +83,7 @@ class Go2RtcServer:
             )
             logger.info(f"[go2rtc] Started with PID {self.sub_process.pid}")
             self._last_health_check = time.time()
+            self._api_fail_count = 0
             return True
         except Exception as ex:
             logger.error(f"[go2rtc] Failed to start: {ex}")
@@ -139,12 +145,28 @@ class Go2RtcServer:
             logger.error(f"[go2rtc] Failed to restart stream {uri}: {ex}")
             return False
 
+    def restart_process(self):
+        """Force-restart the go2rtc process itself (not just a stream).
+
+        Used when the process is alive but its API has stopped responding —
+        e.g. a panic inside a single goroutine that Go recovers per-request,
+        leaving the OS process running but the API listener dead. is_running()
+        can't detect this since the process never exits; only a failing API
+        health check surfaces it.
+        """
+        logger.error("[go2rtc] API unresponsive after repeated checks — restarting process")
+        self.stop()
+        self._stream_fail_counts = {uri: 0 for uri in self._stream_fail_counts}
+        self.start()
+
     def health_check_streams(self):
         """Check go2rtc stream health and restart broken streams.
 
         Called periodically from the main bridge loop. Detects streams
         that have consumers but no active producer (broken pipe state)
-        and force-restarts them.
+        and force-restarts them. Also detects the process-alive-but-API-dead
+        state (e.g. an internal panic) and force-restarts the whole process
+        after a few consecutive unresponsive checks.
         """
         now = time.time()
         if now - self._last_health_check < HEALTH_CHECK_INTERVAL:
@@ -156,7 +178,14 @@ class Go2RtcServer:
 
         streams = self.get_streams_status()
         if streams is None:
+            self._api_fail_count += 1
+            logger.warning(
+                f"[go2rtc] API unresponsive (fail count: {self._api_fail_count}/{API_FAIL_THRESHOLD})"
+            )
+            if self._api_fail_count >= API_FAIL_THRESHOLD:
+                self.restart_process()
             return
+        self._api_fail_count = 0
 
         for uri in self._stream_fail_counts:
             stream_info = streams.get(uri)
