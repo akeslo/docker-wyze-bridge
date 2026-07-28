@@ -18,8 +18,7 @@ MQTT_USER, _, MQTT_PASS = getenv("MQTT_AUTH", ":").partition(":")
 MQTT_HOST, _, MQTT_PORT = getenv("MQTT_HOST", ":").partition(":")
 MQTT_RETRIES: int = int(getenv("MQTT_RETRIES", "3"))
 
-# TODO: change TOKEN_PATH  to /config for all:
-TOKEN_PATH: str = "/config/" if HASS_TOKEN else "/tokens/"
+TOKEN_PATH: str = "/config/"
 IMG_PATH: str = f'/{env_bool("IMG_DIR", r"/img").strip("/")}/'
 
 LATITUDE: float = float(getenv("LATITUDE", "0"))
