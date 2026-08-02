@@ -4,8 +4,9 @@ import signal
 import time
 import yaml
 import requests
+from contextlib import suppress
 from pathlib import Path
-from subprocess import Popen
+from subprocess import Popen, TimeoutExpired
 from typing import Optional
 
 from wyzebridge.logging import logger
@@ -91,11 +92,31 @@ class Go2RtcServer:
 
     def stop(self):
         """Stop go2rtc process."""
-        if self.sub_process and self.sub_process.poll() is None:
-            logger.info("[go2rtc] Stopping...")
-            os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
+        if not (self.sub_process and self.sub_process.poll() is None):
+            return
+
+        logger.info("[go2rtc] Stopping...")
+        try:
+            pgid = os.getpgid(self.sub_process.pid)
+        except (ProcessLookupError, OSError):
+            # Already reaped between poll() and here.
+            return
+
+        try:
+            os.killpg(pgid, signal.SIGTERM)
             self.sub_process.wait(timeout=5)
-            logger.info("[go2rtc] Stopped")
+        except TimeoutExpired:
+            # A go2rtc that ignores SIGTERM must not take the caller down with
+            # it — restart_process() would never reach start(), leaving the
+            # monitoring thread dead with go2rtc down.
+            logger.warning("[go2rtc] Did not exit on SIGTERM, sending SIGKILL")
+            with suppress(ProcessLookupError, OSError, TimeoutExpired):
+                os.killpg(pgid, signal.SIGKILL)
+                self.sub_process.wait(timeout=5)
+        except (ProcessLookupError, OSError) as ex:
+            logger.debug(f"[go2rtc] Process already gone: {ex}")
+
+        logger.info("[go2rtc] Stopped")
 
     def is_running(self) -> bool:
         """Check if go2rtc is running."""

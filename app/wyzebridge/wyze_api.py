@@ -102,7 +102,15 @@ class WyzeCredentials:
         return self.email.lower() == email.lower() if self.is_set else True
 
 class WyzeApi:
-    __slots__ = "auth", "user", "creds", "cameras", "_last_pull", "_auth_lock"
+    __slots__ = (
+        "auth",
+        "user",
+        "creds",
+        "cameras",
+        "_last_pull",
+        "_last_auth_attempt",
+        "_auth_lock",
+    )
 
     def __init__(self) -> None:
         self.auth: Optional[WyzeCredential] = None
@@ -110,6 +118,7 @@ class WyzeApi:
         self.creds: WyzeCredentials = WyzeCredentials()
         self.cameras: Optional[list[WyzeCamera]] = None
         self._last_pull: float = 0
+        self._last_auth_attempt: float = 0
         self._auth_lock = threading.Lock()
 
         if env_bool("FRESH_DATA"):
@@ -313,7 +322,11 @@ class WyzeApi:
             return wss | {"result": "ok", "cam": cam_name}
         except (HTTPError, WyzeAPIError) as ex:
             logger.warning(f"[API] Error fetching signaling data [{type(ex).__name__}] {ex}")
-            if isinstance(ex, HTTPError) and ex.response.status_code == 404:
+            if (
+                isinstance(ex, HTTPError)
+                and ex.response is not None
+                and ex.response.status_code == 404
+            ):
                 ex = "Camera does not support WebRTC"
             return {"result": str(ex), "cam": cam_name}
 
@@ -338,10 +351,16 @@ class WyzeApi:
                 return self.login(fresh_data=True)
 
     def check_auth_lock(self, update: bool = True) -> bool:
-        if time() - self._last_pull < 15:
+        """Rate-limit auth attempts.
+
+        Tracked on a dedicated field: sharing ``_last_pull`` with the camera
+        cache made an ordinary camera fetch suppress a genuine token refresh
+        (and a refresh make a stale camera list look fresh).
+        """
+        if time() - self._last_auth_attempt < 15:
             return True
         if update:
-            self._last_pull = time()
+            self._last_auth_attempt = time()
         return False
 
     @authenticated
