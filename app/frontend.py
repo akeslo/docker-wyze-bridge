@@ -231,7 +231,11 @@ def create_app():
         """View WebRTC direct from camera."""
         if name in wb.disabled_cams:
             return "Camera is disabled", 403
-        if (webrtc := wb.api.get_kvs_signal(name)).get("result") == "ok":
+        if not (webrtc := wb.api.get_kvs_signal(name)):
+            # get_kvs_signal returns None when auth fails or the API errors —
+            # without this the .get() below raises and the route 500s.
+            return {"error": "API unavailable"}, 503
+        if webrtc.get("result") == "ok":
             return make_response(render_template("webrtc.html", webrtc=webrtc))
         return webrtc
 
