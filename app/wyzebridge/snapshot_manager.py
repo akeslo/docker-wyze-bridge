@@ -2,7 +2,7 @@ import os
 import requests
 from datetime import datetime
 import time
-from threading import Thread, Lock
+from threading import Thread, Lock, Event
 from wyzebridge.config import IMG_PATH, SNAPSHOT_INT, SNAPSHOT_FORMAT, SNAPSHOT_KEEP
 from wyzebridge.logging import logger
 from wyzebridge.bridge_utils import env_bool
@@ -14,16 +14,20 @@ class SnapshotManager(Thread):
         self.interval = SNAPSHOT_INT
         self.running = False
         self._lock = Lock()
+        self._stop_event = Event()
         self.go2rtc_api = "http://localhost:1984/api/frame.jpeg"
 
     def run(self):
         logger.info(f"[SNAPSHOT] Starting snapshot thread (Interval: {self.interval}s)")
-        time.sleep(10) # Wait for go2rtc to be ready
+        # Wait for go2rtc to be ready, but stay interruptible.
+        if self._stop_event.wait(10):
+            return
         self.running = True
         while self.running:
             self.take_snapshots()
             self.cleanup()
-            time.sleep(self.interval)
+            if self._stop_event.wait(self.interval):
+                break
 
     def take_snapshots(self):
         """Cycle through cameras and save snapshots."""
@@ -106,5 +110,16 @@ class SnapshotManager(Thread):
             logger.error(f"[SNAPSHOT] Cleanup error: {e}")
 
     def stop(self):
+        """Signal the thread and wait briefly for it to unwind.
+
+        The loop used to sit in a bare ``time.sleep(interval)`` (180s by
+        default), so callers — the Flask restart routes and the SIGTERM
+        clean-up path — blocked for minutes. The stop event wakes it now, and
+        the join is bounded and skipped entirely if the thread never started.
+        """
         self.running = False
-        self.join()
+        self._stop_event.set()
+        if self.is_alive():
+            self.join(timeout=10)
+            if self.is_alive():
+                logger.warning("[SNAPSHOT] Thread did not exit within 10s")
