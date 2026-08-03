@@ -9,6 +9,8 @@ import requests
 from wyzebridge.bridge_utils import clean_cam_name
 from wyzebridge.logging import format_logging, logger
 
+SUPERVISOR_TIMEOUT = 10
+
 def setup_hass(hass_token: Optional[str]) -> None:
     """Home Assistant related config."""
     if not hass_token:
@@ -22,15 +24,27 @@ def setup_hass(hass_token: Optional[str]) -> None:
     auth = {"Authorization": f"Bearer {hass_token}"}
     try:
         assert "WB_IP" not in conf, f"Using WB_IP={conf['WB_IP']} from config"
-        net_info = requests.get("http://supervisor/network/info", headers=auth).json()
+        net_info = requests.get(
+            "http://supervisor/network/info", headers=auth, timeout=SUPERVISOR_TIMEOUT
+        ).json()
         for i in net_info["data"]["interfaces"]:
             if i["primary"]:
                 environ["WB_IP"] = i["ipv4"]["address"][0].split("/")[0]
     except Exception as ex:
         logger.error(f"[HASS] WebRTC setup: [{type(ex).__name__}] {ex}")
 
-    mqtt_conf = requests.get("http://supervisor/services/mqtt", headers=auth).json()
-    if "ok" in mqtt_conf.get("result") and (data := mqtt_conf.get("data")):
+    # This call runs at startup before anything is serving. Untimed and
+    # unguarded, a slow or unreachable supervisor left the add-on hanging here
+    # forever rather than starting without MQTT — the network/info call above
+    # already degrades gracefully, so this one should too.
+    try:
+        mqtt_conf = requests.get(
+            "http://supervisor/services/mqtt", headers=auth, timeout=SUPERVISOR_TIMEOUT
+        ).json()
+    except Exception as ex:
+        logger.error(f"[HASS] MQTT service lookup: [{type(ex).__name__}] {ex}")
+        mqtt_conf = {}
+    if "ok" in (mqtt_conf.get("result") or "") and (data := mqtt_conf.get("data")):
         environ["MQTT_HOST"] = f'{data["host"]}:{data["port"]}'
         environ["MQTT_AUTH"] = f'{data["username"]}:{data["password"]}'
 
