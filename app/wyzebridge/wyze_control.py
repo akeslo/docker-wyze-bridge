@@ -16,6 +16,9 @@ from wyzebridge.logging import logger
 from wyzebridge.mqtt import MQTT_ENABLED, publish_messages, publish_topic
 from wyzebridge.wyze_commands import CMD_VALUES, GET_CMDS, GET_PAYLOAD, PARAMS, SET_CMDS
 
+BOA_HTTP_TIMEOUT = 10
+"""Seconds to wait on the operator-supplied BOA_MOTION URL before giving up."""
+
 REQ_K10050 = ["4.51", "4.52", "4.53", "4.50.4"]
 """Firmware versions that require K10050GetVideoParam to get bitrate."""
 
@@ -377,9 +380,14 @@ def motion_alarm(cam: dict):
 
     if motion and (http := BOA_MOTION):
         try:
-            resp = requests.get(http.format(cam_name=cam["uri"]))
+            # Operator-supplied URL: needs a timeout, or an endpoint that
+            # stalls holds up the control loop indefinitely. Catch
+            # RequestException rather than HTTPError alone — a connect error
+            # or a timeout is not an HTTPError, so those were escaping this
+            # handler and killing the caller instead of being logged.
+            resp = requests.get(http.format(cam_name=cam["uri"]), timeout=BOA_HTTP_TIMEOUT)
             resp.raise_for_status()
-        except requests.exceptions.HTTPError as ex:
+        except requests.exceptions.RequestException as ex:
             logger.error(f"[CONTROL] Error: [{type(ex).__name__}] {ex}")
 
 def parse_fw(fw_ver: str) -> tuple[str, tuple[int, ...]]:
