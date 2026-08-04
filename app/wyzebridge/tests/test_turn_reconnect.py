@@ -2,6 +2,11 @@ import asyncio
 import pytest
 from unittest import mock
 
+# webrtc_stream is legacy/dead code (superseded by go2rtc) and is the only
+# consumer of aiortc, which is not in app/requirements.txt or the image.
+# Skip rather than hard-fail collection, which would take the whole suite down.
+pytest.importorskip("aiortc", reason="aiortc is not a runtime dependency; webrtc_stream is legacy")
+
 # Import the class under test
 from wyzebridge.webrtc_stream import WebRtcStream, StreamStatus
 
