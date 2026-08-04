@@ -14,7 +14,9 @@ from wyzebridge.logging import logger
 
 auth = HTTPBasicAuth()
 
-API_ENDPOINTS = "/api", "/img", "/snapshot", "/thumb", "/photo"
+# "/signaling" is included because go2rtc fetches it as a machine client using
+# the api key; without it every signaling fetch 401s and no stream connects.
+API_ENDPOINTS = "/api", "/img", "/snapshot", "/thumb", "/photo", "/signaling"
 
 @auth.verify_password
 def verify_password(username, password):

@@ -348,7 +348,11 @@ class WyzeApi:
             except Exception as ex:
                 logger.error(f"[API] Exception refreshing token [{type(ex).__name__}] {ex}")
                 logger.warning("⏰ Expired refresh token?")
-                return self.login(fresh_data=True)
+
+        # login() blocks until credentials are set, so it must run OUTSIDE the
+        # lock: falling back while holding it wedged every other thread's
+        # refresh_token() permanently whenever creds were not yet entered.
+        return self.login(fresh_data=True)
 
     def check_auth_lock(self, update: bool = True) -> bool:
         """Rate-limit auth attempts.
