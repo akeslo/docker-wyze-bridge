@@ -152,11 +152,14 @@ class Go2RtcServer:
                 params={"src": uri},
                 timeout=5
             )
-            # Re-add stream source so go2rtc can reconnect
+            # Re-add stream source so go2rtc can reconnect.
+            # go2rtc takes the SOURCE in `src` and the stream name in `name` —
+            # passing the bare uri as `src` re-created the stream pointing at
+            # itself, so every recovery destroyed the stream it meant to fix.
+            src = source if isinstance(source, str) else source[0]
             requests.put(
                 f"{GO2RTC_API}/api/streams",
-                params={"src": uri, "name": uri},
-                json={"source": source} if isinstance(source, str) else source,
+                params={"src": src, "name": uri},
                 timeout=5
             )
             logger.info(f"[go2rtc] Restarted stream: {uri}")

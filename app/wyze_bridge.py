@@ -66,7 +66,7 @@ class WyzeBridge(Thread):
                 self.disabled_cams.remove(uri)
                 if uri in self.cameras:
                     # Re-add to go2rtc
-                    signaling_url = f"http://127.0.0.1:5000/signaling/{uri}?kvs"
+                    signaling_url = self._signaling_url(uri)
                     self.go2rtc.add_camera(uri, signaling_url)
         else:
             self.disabled_cams.add(uri)
@@ -121,17 +121,34 @@ class WyzeBridge(Thread):
                 self.snapshots = SnapshotManager(self.cameras)
                 self.snapshots.start()
 
+    @staticmethod
+    def _signaling_url(uri: str) -> str:
+        """Signaling URL go2rtc uses to reach our Flask endpoint.
+
+        go2rtc is a machine client with no browser session, so it must carry
+        the api key; ``/signaling`` is in ``web_ui.API_ENDPOINTS`` for that.
+        """
+        return f"http://127.0.0.1:5000/signaling/{uri}?kvs&api={WbAuth.api}"
+
     def _initialize(self, fresh_data: bool = False) -> None:
         """Login, setup cameras, configure and start go2rtc."""
         self.api.login(fresh_data=fresh_data)
-        WbAuth.set_email(email=self.api.get_user().email, force=fresh_data)
+        # get_user() returns None when login failed or was rate-limited;
+        # dereferencing it aborted _initialize before go2rtc ever started.
+        if user := self.api.get_user():
+            WbAuth.set_email(email=user.email, force=fresh_data)
+        else:
+            logger.error("[BRIDGE] Could not fetch Wyze account info")
 
         # Discover cameras and configure go2rtc
         self.setup_cameras()
 
         if len(self.cameras) < 1:
+            # A transient API failure yields an empty camera list, and this
+            # runs on a background thread — killing the container on a blip
+            # is worse than idling until the next restart/refresh.
             logger.warning("[BRIDGE] No WebRTC-compatible cameras found!")
-            return signal.raise_signal(signal.SIGINT)
+            return
 
         # Start go2rtc with configured streams
         if not self.go2rtc.start():
@@ -181,8 +198,8 @@ class WyzeBridge(Thread):
                 continue
 
             # go2rtc will use our Flask signaling endpoint
-            # Format: webrtc:http://127.0.0.1:5000/signaling/<cam>?kvs#format=wyze
-            signaling_url = f"http://127.0.0.1:5000/signaling/{cam.name_uri}?kvs"
+            # Format: webrtc:http://127.0.0.1:5000/signaling/<cam>?kvs&api=<key>#format=wyze
+            signaling_url = self._signaling_url(cam.name_uri)
             self.go2rtc.add_camera(cam.name_uri, signaling_url)
 
     def get_kvs_signal(self, cam_name: str) -> dict:
