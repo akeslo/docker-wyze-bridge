@@ -16,3 +16,5 @@ mediamtx.yml
 
 media/
 CLAUDE.local.md
+.pytest_cache
+__pycache__
