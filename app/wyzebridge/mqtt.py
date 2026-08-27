@@ -2,7 +2,7 @@ import contextlib
 import json
 from functools import wraps
 from socket import gaierror
-from time import sleep
+from time import monotonic, sleep
 from typing import Optional
 
 import paho.mqtt.client
@@ -15,15 +15,29 @@ from wyzebridge.config import IMG_PATH, MQTT_ENABLED, MQTT_DISCOVERY, MQTT_HOST,
 from wyzebridge.logging import logger
 from wyzebridge.wyze_commands import GET_CMDS, GET_PAYLOAD, PARAMS, SET_CMDS
 
+# How long to wait, after exhausting MQTT_RETRIES, before allowing another
+# attempt. Without a cooldown, a transient broker outage (restart, brief
+# network blip) permanently disables MQTT for the life of the bridge
+# process, since nothing else ever flips is_mqtt_active back on -- the
+# only recovery was restarting the whole container.
+MQTT_RETRY_COOLDOWN = 300
+
 is_mqtt_active: bool = MQTT_ENABLED
+_mqtt_retry_after: float = 0.0
 
 def mqtt_enabled(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        global is_mqtt_active
+        global is_mqtt_active, _mqtt_retry_after
+
+        if not MQTT_ENABLED:
+            return
 
         if not is_mqtt_active:
-            return
+            if monotonic() < _mqtt_retry_after:
+                return
+            logger.info("[MQTT] Retrying after cooldown.")
+            is_mqtt_active = True
 
         for retry in range(1, MQTT_RETRIES + 1):
             try:
@@ -35,8 +49,9 @@ def mqtt_enabled(func):
 
             sleep(1)
 
-        logger.error(f"[MQTT] {MQTT_RETRIES}/{MQTT_RETRIES} retries failed. Disabling MQTT.")
+        logger.error(f"[MQTT] {MQTT_RETRIES}/{MQTT_RETRIES} retries failed. Disabling MQTT for {MQTT_RETRY_COOLDOWN}s.")
         is_mqtt_active = False
+        _mqtt_retry_after = monotonic() + MQTT_RETRY_COOLDOWN
 
     return wrapper
 
