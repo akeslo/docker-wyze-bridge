@@ -185,7 +185,8 @@ class WyzeApi:
             logger.info("⚠️ Using 'ACCESS_TOKEN' for authentication")
             try:
                 self.auth = WyzeCredential(access_token=token)
-            except Exception:
+            except Exception as ex:
+                logger.warning(f"Error using 'ACCESS_TOKEN' for authentication: [{type(ex).__name__}] {ex}")
                 self.auth = None
 
         if len(token := refresh or env_bool("refresh_token", style="original")) > 150:
@@ -193,7 +194,8 @@ class WyzeApi:
             try:
                 creds = WyzeCredential(refresh_token=token)
                 self.auth = refresh_token(creds)
-            except Exception:
+            except Exception as ex:
+                logger.warning(f"Error using 'REFRESH_TOKEN' for authentication: [{type(ex).__name__}] {ex}")
                 self.auth = None
 
     @cached
