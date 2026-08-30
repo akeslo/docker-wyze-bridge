@@ -6,7 +6,7 @@ python-dotenv==1.1.0
 requests==2.32.3
 PyYAML==6.0.1
 xxtea==3.3.0
-astral==3.3
+astral==3.2
 tzlocal==5.3.1
 pytest==7.4.4
 pytest-asyncio==0.23.3
