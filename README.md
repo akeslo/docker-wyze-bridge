@@ -105,7 +105,7 @@ This repository is compatible with the Home Assistant Add-on Store.
 | :--- | :--- | :--- |
 | `WB_AUTH` | `False` | Enable login for the Web UI. |
 | `SNAPSHOT` | `Disable` | Interval in seconds to take snapshots (e.g., `180`). |
-| `SNAPSHOT_RETENTION` | `7d` | How long to keep snapshots (e.g., `7d`, `24h`). |
+| `SNAPSHOT_KEEP` | `7d` | How long to keep snapshots (e.g., `7d`, `24h`). |
 | `FILTER_NAMES` | *None* | Comma-separated list of camera nicknames to include. |
 
 ---
@@ -116,7 +116,7 @@ Once running, your streams are available at:
 
 *   **WebUI:** `http://localhost:5000`
 *   **RTSP:** `rtsp://localhost:8554/camera-name`
-*   **HLS:** `http://localhost:8888/camera-name/index.m3u8`
+*   **HLS:** `http://localhost:1984/api/stream.m3u8?src=camera-name`
 *   **WebRTC:** `http://localhost:1984/stream.html?src=camera-name`
 
 ---
