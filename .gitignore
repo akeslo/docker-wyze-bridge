@@ -18,3 +18,4 @@ media/
 CLAUDE.local.md
 .pytest_cache
 __pycache__
+.venv-check312/
