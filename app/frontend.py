@@ -258,8 +258,10 @@ def create_app():
             age = time.time() - os.path.getmtime(file_path)
             is_fresh = age < 180
         
-        # If stale or missing, try to update from cloud
-        if not is_fresh:
+        # If stale or missing, try to update from cloud — only for a real,
+        # known camera; otherwise any string here would trigger a live
+        # Wyze cloud API call for a URI that can never resolve to a stream.
+        if not is_fresh and uri in wb.cameras:
             try:
                 wb.api.save_thumbnail(uri, "")
             except Exception:
