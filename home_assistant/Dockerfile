@@ -1,1 +1,1 @@
-FROM idisposablegithub365/wyze-bridge:latest
+FROM ghcr.io/akeslo/docker-wyze-bridge:latest
