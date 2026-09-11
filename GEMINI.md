@@ -14,7 +14,7 @@ Prioritize the instructions in this `.md` file and the codebase state over your 
 
 - **Language:** Python 3.x (Flask-based web application)
 - **Framework:** Flask 3.1.x with Flask-HTTPAuth
-- **Dependencies:** paho-mqtt, pydantic, python-dotenv, requests, PyYAML, xxtea, astral, tzlocal
+- **Dependencies:** paho-mqtt, pydantic, python-dotenv, requests, PyYAML, xxtea
 - **Containerization:** Docker with docker-compose
 - **Environment:** `.env` file for versioning and SDK configuration
 
