@@ -117,8 +117,12 @@ class WyzeBridge(Thread):
                 logger.error("[BRIDGE] go2rtc process died! Restarting...")
                 self.go2rtc.start()
             else:
-                # Monitor stream health within go2rtc (detect broken pipe / no-producer states)
-                self.go2rtc.health_check_streams()
+                # Monitor stream health within go2rtc (detect broken pipe / no-producer states).
+                # Never let a health-check bug take the supervisor down with it.
+                try:
+                    self.go2rtc.health_check_streams()
+                except Exception as ex:
+                    logger.error(f"[BRIDGE] go2rtc health check failed: {ex}")
 
             if self.snapshots and not self.snapshots.is_alive():
                 logger.error("[BRIDGE] Snapshot manager died! Restarting...")
