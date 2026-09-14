@@ -216,8 +216,11 @@ class Go2RtcServer:
             if not stream_info:
                 continue
 
-            producers = stream_info.get("producers", [])
-            consumers = stream_info.get("consumers", [])
+            # go2rtc serialises an empty list as JSON null, so .get()'s
+            # default never applies and len() raised TypeError, killing the
+            # bridge's monitor thread (and with it go2rtc respawn).
+            producers = stream_info.get("producers") or []
+            consumers = stream_info.get("consumers") or []
 
             has_consumers = len(consumers) > 0
             has_producers = len(producers) > 0
