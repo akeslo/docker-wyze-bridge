@@ -109,6 +109,10 @@ class WyzeBridge(Thread):
         self._initialize(fresh_data)
         while True:
             time.sleep(10)
+            if not self.cameras:
+                # _initialize bailed before go2rtc started (no cameras / API
+                # blip); nothing to supervise until the next restart/refresh.
+                continue
             if not self.go2rtc.is_running():
                 logger.error("[BRIDGE] go2rtc process died! Restarting...")
                 self.go2rtc.start()

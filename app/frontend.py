@@ -26,8 +26,11 @@ from wyzebridge.web_ui import url_for
 def create_app():
     app = Flask(__name__)
     wb = WyzeBridge()
-    # Start bridge initialization in background thread so Flask can start even if auth fails
-    Thread(target=wb._initialize, kwargs={"fresh_data": False}, daemon=True).start()
+    # Start bridge in background thread so Flask can start even if auth fails.
+    # run(), not _initialize(): run() owns the monitor loop that respawns go2rtc
+    # when it dies. Calling _initialize() here left go2rtc unsupervised, so an
+    # OOM-killed go2rtc stayed a zombie while Flask kept answering on :5000.
+    Thread(target=wb.run, kwargs={"fresh_data": False}, daemon=True).start()
 
     def auth_required(view):
         @wraps(view)
