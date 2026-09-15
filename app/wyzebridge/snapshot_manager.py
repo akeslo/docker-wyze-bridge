@@ -80,15 +80,26 @@ class SnapshotManager(Thread):
             return
             
         try:
-            # Parse retention (e.g. 7d -> 7 days)
-            # Simple parser: only supports 'd' for now or raw int for days
-            days = 7
-            if SNAPSHOT_KEEP.lower().endswith("d"):
-                days = int(SNAPSHOT_KEEP[:-1])
-            elif SNAPSHOT_KEEP.isdigit():
-                days = int(SNAPSHOT_KEEP)
-            
-            cutoff = time.time() - (days * 86400)
+            # Parse retention (e.g. 7d -> 7 days, 24h -> 24 hours). README
+            # documents both 'd' and 'h' suffixes as valid; an unrecognized
+            # value used to silently fall back to the hardcoded 7-day
+            # default with no warning, so SNAPSHOT_KEEP=24h retained 7x
+            # longer than configured.
+            value = SNAPSHOT_KEEP.strip().lower()
+            seconds = 7 * 86400
+            if value.endswith("d") and value[:-1].isdigit():
+                seconds = int(value[:-1]) * 86400
+            elif value.endswith("h") and value[:-1].isdigit():
+                seconds = int(value[:-1]) * 3600
+            elif value.isdigit():
+                seconds = int(value) * 86400
+            else:
+                logger.warning(
+                    f"[SNAPSHOT] Unrecognized SNAPSHOT_KEEP={SNAPSHOT_KEEP!r}, "
+                    "defaulting to 7 days"
+                )
+
+            cutoff = time.time() - seconds
             
             # Simple walker - this might be slow if many files, but runs in background thread
             count = 0 
