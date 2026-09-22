@@ -103,7 +103,7 @@ This repository is compatible with the Home Assistant Add-on Store.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `WB_AUTH` | `False` | Enable login for the Web UI. |
+| `WB_AUTH` | `True` | Enable login for the Web UI. |
 | `SNAPSHOT` | `Disable` | Interval in seconds to take snapshots (e.g., `180`). |
 | `SNAPSHOT_KEEP` | `7d` | How long to keep snapshots (e.g., `7d`, `24h`). |
 | `FILTER_NAMES` | *None* | Comma-separated list of camera nicknames to include. |
