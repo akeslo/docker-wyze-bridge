@@ -101,7 +101,6 @@ def create_app():
                 "model_name": cam.model_name,
                 "webrtc_support": cam.webrtc_support,
                 "webrtc": cam.webrtc_support,  # For template compatibility
-                "enabled": True,  # go2rtc handles on-demand
                 "online": cam.ip is not None,
                 "connected": True,  # go2rtc handles connections
                 "enabled": uri not in wb.disabled_cams,
